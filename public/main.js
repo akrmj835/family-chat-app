@@ -678,7 +678,10 @@ async function switchCamera() {
 
 // كتم/إلغاء كتم الصوت
 function toggleMute() {
-  if (!localStream) return;
+  if (!localStream) {
+    console.warn('⚠️ لا توجد كاميرا نشطة للتحكم في الصوت');
+    return;
+  }
   
   const audioTrack = localStream.getAudioTracks()[0];
   if (audioTrack) {
@@ -686,9 +689,11 @@ function toggleMute() {
     audioTrack.enabled = !isMuted;
     
     const muteBtn = document.getElementById('muteBtn');
-    muteBtn.textContent = isMuted ? '🔇' : '🎤';
-    muteBtn.classList.toggle('active', isMuted);
-    muteBtn.title = isMuted ? 'إلغاء كتم الصوت' : 'كتم الصوت';
+    if (muteBtn) {
+      muteBtn.innerHTML = isMuted ? '🔇 الصوت مكتوم' : '🎤 الصوت';
+      muteBtn.classList.toggle('active', isMuted);
+      muteBtn.title = isMuted ? 'إلغاء كتم الصوت' : 'كتم الصوت';
+    }
     
     console.log(isMuted ? '🔇 تم كتم الصوت' : '🎤 تم إلغاء كتم الصوت');
   }
@@ -696,7 +701,10 @@ function toggleMute() {
 
 // تشغيل/إيقاف الفيديو
 function toggleVideo() {
-  if (!localStream) return;
+  if (!localStream) {
+    console.warn('⚠️ لا توجد كاميرا نشطة للتحكم في الفيديو');
+    return;
+  }
   
   const videoTrack = localStream.getVideoTracks()[0];
   if (videoTrack) {
@@ -704,9 +712,11 @@ function toggleVideo() {
     videoTrack.enabled = isVideoEnabled;
     
     const videoBtn = document.getElementById('videoBtn');
-    videoBtn.textContent = isVideoEnabled ? '📹' : '📷';
-    videoBtn.classList.toggle('active', !isVideoEnabled);
-    videoBtn.title = isVideoEnabled ? 'إيقاف الفيديو' : 'تشغيل الفيديو';
+    if (videoBtn) {
+      videoBtn.innerHTML = isVideoEnabled ? '📹 الفيديو' : '📷 الفيديو متوقف';
+      videoBtn.classList.toggle('active', !isVideoEnabled);
+      videoBtn.title = isVideoEnabled ? 'إيقاف الفيديو' : 'تشغيل الفيديو';
+    }
     
     console.log(isVideoEnabled ? '📹 تم تشغيل الفيديو' : '📷 تم إيقاف الفيديو');
   }
@@ -823,15 +833,54 @@ function downloadPhoto(photoId) {
 
 // إظهار/إخفاء أدوات التحكم
 function showCameraControls() {
-  const controls = document.getElementById('cameraControls');
-  controls.style.display = 'block';
-  console.log('🎛️ تم إظهار أدوات التحكم في الكاميرا');
+  const settingsBtn = document.getElementById('cameraSettingsBtn');
+  if (settingsBtn) {
+    settingsBtn.style.display = 'block';
+    console.log('🎛️ تم إظهار زر إعدادات الكاميرا');
+  } else {
+    console.warn('⚠️ لم يتم العثور على زر إعدادات الكاميرا');
+  }
 }
 
 function hideCameraControls() {
-  const controls = document.getElementById('cameraControls');
-  controls.style.display = 'none';
+  const settingsBtn = document.getElementById('cameraSettingsBtn');
+  const controlsPanel = document.getElementById('cameraControlsPanel');
+  
+  if (settingsBtn) {
+    settingsBtn.style.display = 'none';
+  }
+  if (controlsPanel) {
+    controlsPanel.style.display = 'none';
+  }
   console.log('🎛️ تم إخفاء أدوات التحكم في الكاميرا');
+}
+
+// تبديل إظهار/إخفاء لوحة التحكم
+function toggleCameraControls() {
+  const controlsPanel = document.getElementById('cameraControlsPanel');
+  
+  if (!controlsPanel) {
+    console.warn('⚠️ لم يتم العثور على لوحة التحكم');
+    return;
+  }
+  
+  const isVisible = controlsPanel.style.display === 'block';
+  
+  if (isVisible) {
+    controlsPanel.style.display = 'none';
+    console.log('🎛️ تم إخفاء لوحة التحكم');
+  } else {
+    controlsPanel.style.display = 'block';
+    console.log('🎛️ تم إظهار لوحة التحكم');
+    
+    // التمرير إلى لوحة التحكم لضمان رؤيتها
+    setTimeout(() => {
+      controlsPanel.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'nearest' 
+      });
+    }, 100);
+  }
 }
 
 // === دالة التشخيص ===

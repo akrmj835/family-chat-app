@@ -9,12 +9,27 @@ let peerConnection;
 let isCallActive = false;
 let isVideoCall = true;
 
-// إعدادات WebRTC
+// إعدادات WebRTC محسنة للعمل عبر الإنترنت
 const config = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" }
-  ]
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun3.l.google.com:19302" },
+    { urls: "stun:stun4.l.google.com:19302" },
+    // خوادم TURN مجانية للاتصالات عبر NAT
+    {
+      urls: "turn:openrelay.metered.ca:80",
+      username: "openrelayproject",
+      credential: "openrelayproject"
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443",
+      username: "openrelayproject", 
+      credential: "openrelayproject"
+    }
+  ],
+  iceCandidatePoolSize: 10
 };
 
 // عناصر DOM
@@ -167,52 +182,90 @@ async function initializeCall() {
   try {
     updateCallStatus('جاري بدء المكالمة...', 'calling');
     
-    // الحصول على إذن الوسائط
+    // الحصول على إذن الوسائط مع إعدادات محسنة
     const constraints = {
-      video: isVideoCall,
-      audio: true
+      video: isVideoCall ? {
+        width: { ideal: 1280, max: 1920 },
+        height: { ideal: 720, max: 1080 },
+        frameRate: { ideal: 30, max: 60 }
+      } : false,
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        sampleRate: 44100
+      }
     };
     
+    console.log('🎥 طلب إذن الوسائط:', constraints);
     localStream = await navigator.mediaDevices.getUserMedia(constraints);
     localVideo.srcObject = localStream;
+    
+    // تشغيل الفيديو المحلي
+    localVideo.muted = true; // كتم الصوت المحلي لتجنب التغذية الراجعة
+    await localVideo.play();
+    
+    console.log('📹 تم الحصول على الوسائط المحلية:', localStream.getTracks());
     
     // إنشاء اتصال WebRTC
     peerConnection = new RTCPeerConnection(config);
     
     // إضافة المسارات المحلية
     localStream.getTracks().forEach(track => {
+      console.log('➕ إضافة مسار:', track.kind, track.enabled);
       peerConnection.addTrack(track, localStream);
     });
     
     // معالجة ICE candidates
     peerConnection.onicecandidate = ({ candidate }) => {
       if (candidate) {
+        console.log('🧊 إرسال ICE candidate:', candidate.type);
         socket.emit("ice-candidate", { to: "all", candidate });
       }
     };
     
     // معالجة المسارات البعيدة
     peerConnection.ontrack = (event) => {
-      console.log('📹 تم استلام مسار بعيد');
-      remoteVideo.srcObject = event.streams[0];
-      updateCallStatus('المكالمة متصلة', 'connected');
+      console.log('📹 تم استلام مسار بعيد:', event.track.kind);
+      const [remoteStream] = event.streams;
+      remoteVideo.srcObject = remoteStream;
+      
+      // تشغيل الفيديو البعيد
+      remoteVideo.play().then(() => {
+        console.log('✅ تم تشغيل الفيديو البعيد بنجاح');
+        updateCallStatus('المكالمة متصلة', 'connected');
+      }).catch(err => {
+        console.error('❌ خطأ في تشغيل الفيديو البعيد:', err);
+      });
     };
     
     // معالجة تغيير حالة الاتصال
     peerConnection.onconnectionstatechange = () => {
-      console.log('حالة الاتصال:', peerConnection.connectionState);
+      console.log('🔗 حالة الاتصال:', peerConnection.connectionState);
       if (peerConnection.connectionState === 'connected') {
         isCallActive = true;
         showEndCallButton();
+        updateCallStatus('المكالمة متصلة', 'connected');
       } else if (peerConnection.connectionState === 'disconnected' || 
                  peerConnection.connectionState === 'failed') {
+        console.log('❌ فشل الاتصال، إنهاء المكالمة');
         endCall();
       }
     };
     
+    // معالجة حالة ICE
+    peerConnection.oniceconnectionstatechange = () => {
+      console.log('🧊 حالة ICE:', peerConnection.iceConnectionState);
+    };
+    
     // إنشاء وإرسال العرض
-    const offer = await peerConnection.createOffer();
+    const offer = await peerConnection.createOffer({
+      offerToReceiveAudio: true,
+      offerToReceiveVideo: isVideoCall
+    });
     await peerConnection.setLocalDescription(offer);
+    
+    console.log('📤 إرسال العرض:', offer.type);
     socket.emit("offer", { to: "all", sdp: offer });
     
     updateCallStatus('في انتظار الرد...', 'calling');
@@ -245,43 +298,92 @@ socket.on("offer", async ({ from, sdp }) => {
     isCallActive = true;
     showEndCallButton();
     
-    // الحصول على إذن الوسائط
+    // الحصول على إذن الوسائط مع إعدادات محسنة
     const constraints = {
-      video: true, // افتراض مكالمة فيديو للبساطة
-      audio: true
+      video: {
+        width: { ideal: 1280, max: 1920 },
+        height: { ideal: 720, max: 1080 },
+        frameRate: { ideal: 30, max: 60 }
+      },
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        sampleRate: 44100
+      }
     };
     
+    console.log('🎥 طلب إذن الوسائط للرد:', constraints);
     localStream = await navigator.mediaDevices.getUserMedia(constraints);
     localVideo.srcObject = localStream;
+    
+    // تشغيل الفيديو المحلي
+    localVideo.muted = true;
+    await localVideo.play();
+    
+    console.log('📹 تم الحصول على الوسائط للرد:', localStream.getTracks());
     
     // إنشاء اتصال WebRTC
     peerConnection = new RTCPeerConnection(config);
     
     // إضافة المسارات المحلية
     localStream.getTracks().forEach(track => {
+      console.log('➕ إضافة مسار للرد:', track.kind, track.enabled);
       peerConnection.addTrack(track, localStream);
     });
     
     // معالجة ICE candidates
     peerConnection.onicecandidate = ({ candidate }) => {
       if (candidate) {
+        console.log('🧊 إرسال ICE candidate للرد:', candidate.type);
         socket.emit("ice-candidate", { to: from, candidate });
       }
     };
     
     // معالجة المسارات البعيدة
     peerConnection.ontrack = (event) => {
-      console.log('📹 تم استلام مسار بعيد');
-      remoteVideo.srcObject = event.streams[0];
-      updateCallStatus('المكالمة متصلة', 'connected');
+      console.log('📹 تم استلام مسار بعيد للرد:', event.track.kind);
+      const [remoteStream] = event.streams;
+      remoteVideo.srcObject = remoteStream;
+      
+      // تشغيل الفيديو البعيد
+      remoteVideo.play().then(() => {
+        console.log('✅ تم تشغيل الفيديو البعيد للرد بنجاح');
+        updateCallStatus('المكالمة متصلة', 'connected');
+      }).catch(err => {
+        console.error('❌ خطأ في تشغيل الفيديو البعيد للرد:', err);
+      });
+      
       isCallActive = true;
       showEndCallButton();
     };
     
+    // معالجة تغيير حالة الاتصال
+    peerConnection.onconnectionstatechange = () => {
+      console.log('🔗 حالة الاتصال للرد:', peerConnection.connectionState);
+      if (peerConnection.connectionState === 'connected') {
+        updateCallStatus('المكالمة متصلة', 'connected');
+      } else if (peerConnection.connectionState === 'disconnected' || 
+                 peerConnection.connectionState === 'failed') {
+        console.log('❌ فشل الاتصال للرد، إنهاء المكالمة');
+        endCall();
+      }
+    };
+    
+    // معالجة حالة ICE
+    peerConnection.oniceconnectionstatechange = () => {
+      console.log('🧊 حالة ICE للرد:', peerConnection.iceConnectionState);
+    };
+    
     // تعيين الوصف البعيد وإنشاء الإجابة
     await peerConnection.setRemoteDescription(new RTCSessionDescription(sdp));
-    const answer = await peerConnection.createAnswer();
+    const answer = await peerConnection.createAnswer({
+      offerToReceiveAudio: true,
+      offerToReceiveVideo: true
+    });
     await peerConnection.setLocalDescription(answer);
+    
+    console.log('📤 إرسال الإجابة:', answer.type);
     socket.emit("answer", { to: from, sdp: answer });
     
   } catch (error) {
@@ -294,10 +396,12 @@ socket.on("offer", async ({ from, sdp }) => {
 // معالجة الإجابات
 socket.on("answer", async ({ sdp }) => {
   try {
-    console.log('✅ تم استلام إجابة المكالمة');
+    console.log('✅ تم استلام إجابة المكالمة:', sdp.type);
     await peerConnection.setRemoteDescription(new RTCSessionDescription(sdp));
+    console.log('✅ تم تعيين الوصف البعيد للإجابة');
   } catch (error) {
-    console.error('خطأ في معالجة الإجابة:', error);
+    console.error('❌ خطأ في معالجة الإجابة:', error);
+    updateCallStatus('فشل في الاتصال', 'error');
   }
 });
 
@@ -305,10 +409,12 @@ socket.on("answer", async ({ sdp }) => {
 socket.on("ice-candidate", async ({ candidate }) => {
   try {
     if (peerConnection && candidate) {
+      console.log('🧊 تم استلام ICE candidate:', candidate.type || 'unknown');
       await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      console.log('✅ تم إضافة ICE candidate بنجاح');
     }
   } catch (error) {
-    console.error("خطأ في ICE candidate:", error);
+    console.error("❌ خطأ في ICE candidate:", error);
   }
 });
 
@@ -418,6 +524,45 @@ window.addEventListener('beforeunload', () => {
     endCall();
   }
 });
+
+// === دالة التشخيص ===
+function diagnoseConnection() {
+  console.log('🔍 تشخيص الاتصال:');
+  console.log('- Socket متصل:', socket.connected);
+  console.log('- المكالمة نشطة:', isCallActive);
+  console.log('- نوع المكالمة:', isVideoCall ? 'فيديو' : 'صوت');
+  
+  if (localStream) {
+    console.log('- المسارات المحلية:');
+    localStream.getTracks().forEach(track => {
+      console.log(`  - ${track.kind}: ${track.enabled ? 'مفعل' : 'معطل'} (${track.readyState})`);
+    });
+  } else {
+    console.log('- لا توجد مسارات محلية');
+  }
+  
+  if (peerConnection) {
+    console.log('- حالة الاتصال:', peerConnection.connectionState);
+    console.log('- حالة ICE:', peerConnection.iceConnectionState);
+    console.log('- حالة التجميع:', peerConnection.iceGatheringState);
+    console.log('- حالة الإشارة:', peerConnection.signalingState);
+  } else {
+    console.log('- لا يوجد اتصال WebRTC');
+  }
+  
+  if (remoteVideo.srcObject) {
+    const remoteStream = remoteVideo.srcObject;
+    console.log('- المسارات البعيدة:');
+    remoteStream.getTracks().forEach(track => {
+      console.log(`  - ${track.kind}: ${track.enabled ? 'مفعل' : 'معطل'} (${track.readyState})`);
+    });
+  } else {
+    console.log('- لا توجد مسارات بعيدة');
+  }
+}
+
+// إضافة زر التشخيص للوحة التحكم
+window.diagnoseConnection = diagnoseConnection;
 
 // === وظائف الدعوة ===
 

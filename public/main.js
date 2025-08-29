@@ -289,7 +289,9 @@ async function initializeCall() {
     await peerConnection.setLocalDescription(offer);
     
     console.log('📤 إرسال العرض:', offer.type);
+    console.log('📤 بيانات العرض:', { to: "all", sdp: offer });
     socket.emit("offer", { to: "all", sdp: offer });
+    console.log('✅ تم إرسال العرض إلى الخادم');
     
     updateCallStatus('في انتظار الرد...', 'calling');
     
@@ -308,6 +310,7 @@ async function initializeCall() {
 socket.on("offer", async ({ from, sdp }) => {
   try {
     console.log('📞 تم استلام عرض مكالمة من:', from);
+    console.log('📞 بيانات العرض المستلم:', { from, sdp });
     
     // السؤال عن قبول المكالمة
     const accept = confirm('📞 مكالمة واردة! هل تريد الإجابة؟');

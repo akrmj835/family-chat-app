@@ -71,10 +71,22 @@ io.on("connection", (socket) => {
   // WebRTC Signaling (العرض/الجواب/ICE)
   socket.on("offer", (data) => {
     console.log(`📞 عرض مكالمة من ${socket.id} إلى ${data.to}`);
-    socket.to(data.to).emit("offer", { 
-      from: socket.id, 
-      sdp: data.sdp 
-    });
+    
+    if (data.to === "all") {
+      // إرسال للجميع ما عدا المرسل
+      socket.broadcast.emit("offer", { 
+        from: socket.id, 
+        sdp: data.sdp 
+      });
+      console.log(`📤 تم إرسال العرض للجميع`);
+    } else {
+      // إرسال لمستخدم محدد
+      socket.to(data.to).emit("offer", { 
+        from: socket.id, 
+        sdp: data.sdp 
+      });
+      console.log(`📤 تم إرسال العرض إلى ${data.to}`);
+    }
   });
 
   socket.on("answer", (data) => {
@@ -86,10 +98,21 @@ io.on("connection", (socket) => {
   });
 
   socket.on("ice-candidate", (data) => {
-    socket.to(data.to).emit("ice-candidate", { 
-      from: socket.id, 
-      candidate: data.candidate 
-    });
+    console.log(`🧊 ICE candidate من ${socket.id} إلى ${data.to}`);
+    
+    if (data.to === "all") {
+      // إرسال للجميع ما عدا المرسل
+      socket.broadcast.emit("ice-candidate", { 
+        from: socket.id, 
+        candidate: data.candidate 
+      });
+    } else {
+      // إرسال لمستخدم محدد
+      socket.to(data.to).emit("ice-candidate", { 
+        from: socket.id, 
+        candidate: data.candidate 
+      });
+    }
   });
 
   // إنهاء المكالمة

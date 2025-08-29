@@ -60,47 +60,62 @@
             <video id="localVideo" autoplay playsinline muted></video>
             <label>أنت</label>
             
-            <!-- أدوات التحكم في الكاميرا -->
-            <div class="camera-controls" id="cameraControls" style="display: none;">
-              <div class="camera-row">
-                <button onclick="switchCamera()" id="switchCameraBtn" title="تبديل الكاميرا">
-                  🔄
-                </button>
-                <button onclick="toggleMute()" id="muteBtn" title="كتم/إلغاء كتم الصوت">
-                  🎤
-                </button>
-                <button onclick="toggleVideo()" id="videoBtn" title="تشغيل/إيقاف الفيديو">
-                  📹
-                </button>
-                <button onclick="capturePhoto()" id="captureBtn" title="التقاط صورة">
-                  📸
-                </button>
-              </div>
-              
-              <div class="camera-row">
-                <label>🔍 التكبير:</label>
-                <input type="range" id="zoomSlider" min="1" max="3" step="0.1" value="1" onchange="adjustZoom(this.value)">
-                <span id="zoomValue">1x</span>
-              </div>
-              
-              <div class="camera-row">
-                <label>🎨 الفلتر:</label>
-                <select id="filterSelect" onchange="applyFilter(this.value)">
-                  <option value="none">بدون فلتر</option>
-                  <option value="grayscale">أبيض وأسود</option>
-                  <option value="sepia">سيبيا</option>
-                  <option value="blur">ضبابي</option>
-                  <option value="brightness">مشرق</option>
-                  <option value="contrast">تباين عالي</option>
-                  <option value="vintage">كلاسيكي</option>
-                </select>
-              </div>
-            </div>
+            <!-- زر إظهار أدوات التحكم -->
+            <button class="camera-settings-btn" id="cameraSettingsBtn" onclick="toggleCameraControls()" style="display: none;" title="إعدادات الكاميرا">
+              ⚙️
+            </button>
           </div>
           
           <div class="video-wrapper">
             <video id="remoteVideo" autoplay playsinline></video>
             <label>العضو الآخر</label>
+          </div>
+        </div>
+        
+        <!-- أدوات التحكم في الكاميرا (خارج الفيديو) -->
+        <div class="camera-controls-panel" id="cameraControlsPanel" style="display: none;">
+          <div class="camera-controls-header">
+            <h4>🎛️ إعدادات الكاميرا</h4>
+            <button class="close-controls-btn" onclick="toggleCameraControls()">✖️</button>
+          </div>
+          
+          <div class="camera-controls-content">
+            <div class="camera-row">
+              <button onclick="switchCamera()" id="switchCameraBtn" title="تبديل الكاميرا">
+                🔄 تبديل الكاميرا
+              </button>
+              <button onclick="toggleMute()" id="muteBtn" title="كتم/إلغاء كتم الصوت">
+                🎤 الصوت
+              </button>
+            </div>
+            
+            <div class="camera-row">
+              <button onclick="toggleVideo()" id="videoBtn" title="تشغيل/إيقاف الفيديو">
+                📹 الفيديو
+              </button>
+              <button onclick="capturePhoto()" id="captureBtn" title="التقاط صورة">
+                📸 التقاط صورة
+              </button>
+            </div>
+            
+            <div class="camera-row">
+              <label>🔍 التكبير:</label>
+              <input type="range" id="zoomSlider" min="1" max="3" step="0.1" value="1" onchange="adjustZoom(this.value)">
+              <span id="zoomValue">1x</span>
+            </div>
+            
+            <div class="camera-row">
+              <label>🎨 الفلتر:</label>
+              <select id="filterSelect" onchange="applyFilter(this.value)">
+                <option value="none">بدون فلتر</option>
+                <option value="grayscale">أبيض وأسود</option>
+                <option value="sepia">سيبيا</option>
+                <option value="blur">ضبابي</option>
+                <option value="brightness">مشرق</option>
+                <option value="contrast">تباين عالي</option>
+                <option value="vintage">كلاسيكي</option>
+              </select>
+            </div>
           </div>
         </div>
         

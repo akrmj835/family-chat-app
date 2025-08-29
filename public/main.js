@@ -114,7 +114,17 @@ socket.on('disconnect', () => {
   connectionStatus.className = 'disconnected';
   updateCallButtons(false);
   if (isCallActive) {
-    endCall();
+    updateCallStatus('انقطع الاتصال بالخادم...', 'warning');
+  }
+});
+
+// معالجة إعادة الاتصال
+socket.on('reconnect', () => {
+  console.log('🔄 تم إعادة الاتصال بالخادم');
+  connectionStatus.textContent = '🟢 متصل';
+  connectionStatus.className = 'connected';
+  if (isCallActive) {
+    updateCallStatus('تم استعادة الاتصال', 'connected');
   }
 });
 
@@ -256,6 +266,19 @@ async function initializeCall() {
     // معالجة حالة ICE
     peerConnection.oniceconnectionstatechange = () => {
       console.log('🧊 حالة ICE:', peerConnection.iceConnectionState);
+      
+      if (peerConnection.iceConnectionState === 'connected' || 
+          peerConnection.iceConnectionState === 'completed') {
+        console.log('✅ تم تأسيس اتصال ICE بنجاح');
+        updateCallStatus('المكالمة متصلة', 'connected');
+      } else if (peerConnection.iceConnectionState === 'disconnected') {
+        console.log('⚠️ انقطع اتصال ICE مؤقتاً');
+        updateCallStatus('إعادة الاتصال...', 'warning');
+      } else if (peerConnection.iceConnectionState === 'failed') {
+        console.log('❌ فشل اتصال ICE');
+        updateCallStatus('فشل في الاتصال', 'error');
+        setTimeout(() => endCall(), 3000);
+      }
     };
     
     // إنشاء وإرسال العرض
@@ -373,6 +396,19 @@ socket.on("offer", async ({ from, sdp }) => {
     // معالجة حالة ICE
     peerConnection.oniceconnectionstatechange = () => {
       console.log('🧊 حالة ICE للرد:', peerConnection.iceConnectionState);
+      
+      if (peerConnection.iceConnectionState === 'connected' || 
+          peerConnection.iceConnectionState === 'completed') {
+        console.log('✅ تم تأسيس اتصال ICE للرد بنجاح');
+        updateCallStatus('المكالمة متصلة', 'connected');
+      } else if (peerConnection.iceConnectionState === 'disconnected') {
+        console.log('⚠️ انقطع اتصال ICE للرد مؤقتاً');
+        updateCallStatus('إعادة الاتصال...', 'warning');
+      } else if (peerConnection.iceConnectionState === 'failed') {
+        console.log('❌ فشل اتصال ICE للرد');
+        updateCallStatus('فشل في الاتصال', 'error');
+        setTimeout(() => endCall(), 3000);
+      }
     };
     
     // تعيين الوصف البعيد وإنشاء الإجابة
@@ -513,8 +549,19 @@ function playNotificationSound() {
 // معالجة قطع الاتصال للمستخدمين
 socket.on("user-disconnected", (userId) => {
   console.log('👤 مستخدم خرج:', userId);
+  
+  // إعطاء وقت للمستخدم للعودة (قد يكون انقطاع مؤقت)
   if (isCallActive) {
-    endCall();
+    updateCallStatus('انقطع اتصال المستخدم الآخر...', 'warning');
+    
+    // انتظار 10 ثوان قبل إنهاء المكالمة
+    setTimeout(() => {
+      if (isCallActive) {
+        console.log('⏰ انتهت مهلة الانتظار، إنهاء المكالمة');
+        updateCallStatus('انقطع الاتصال', 'error');
+        endCall();
+      }
+    }, 10000);
   }
 });
 

@@ -217,6 +217,9 @@ async function initializeCall() {
     
     console.log('📹 تم الحصول على الوسائط المحلية:', localStream.getTracks());
     
+    // إظهار أدوات التحكم في الكاميرا
+    showCameraControls();
+    
     // إنشاء اتصال WebRTC
     peerConnection = new RTCPeerConnection(config);
     
@@ -238,15 +241,27 @@ async function initializeCall() {
     peerConnection.ontrack = (event) => {
       console.log('📹 تم استلام مسار بعيد:', event.track.kind);
       const [remoteStream] = event.streams;
-      remoteVideo.srcObject = remoteStream;
       
-      // تشغيل الفيديو البعيد
-      remoteVideo.play().then(() => {
-        console.log('✅ تم تشغيل الفيديو البعيد بنجاح');
-        updateCallStatus('المكالمة متصلة', 'connected');
-      }).catch(err => {
-        console.error('❌ خطأ في تشغيل الفيديو البعيد:', err);
-      });
+      // تأكد من عدم وجود مصدر سابق
+      if (remoteVideo.srcObject !== remoteStream) {
+        remoteVideo.srcObject = remoteStream;
+        
+        // انتظار قصير قبل التشغيل لتجنب التداخل
+        setTimeout(() => {
+          remoteVideo.play().then(() => {
+            console.log('✅ تم تشغيل الفيديو البعيد بنجاح');
+            updateCallStatus('المكالمة متصلة', 'connected');
+          }).catch(err => {
+            console.warn('⚠️ تحذير في تشغيل الفيديو البعيد:', err.message);
+            // المحاولة مرة أخرى بعد وقت قصير
+            setTimeout(() => {
+              remoteVideo.play().catch(() => {
+                console.log('ℹ️ الفيديو البعيد سيتم تشغيله تلقائياً');
+              });
+            }, 500);
+          });
+        }, 100);
+      }
     };
     
     // معالجة تغيير حالة الاتصال
@@ -349,6 +364,9 @@ socket.on("offer", async ({ from, sdp }) => {
     
     console.log('📹 تم الحصول على الوسائط للرد:', localStream.getTracks());
     
+    // إظهار أدوات التحكم في الكاميرا
+    showCameraControls();
+    
     // إنشاء اتصال WebRTC
     peerConnection = new RTCPeerConnection(config);
     
@@ -370,15 +388,27 @@ socket.on("offer", async ({ from, sdp }) => {
     peerConnection.ontrack = (event) => {
       console.log('📹 تم استلام مسار بعيد للرد:', event.track.kind);
       const [remoteStream] = event.streams;
-      remoteVideo.srcObject = remoteStream;
       
-      // تشغيل الفيديو البعيد
-      remoteVideo.play().then(() => {
-        console.log('✅ تم تشغيل الفيديو البعيد للرد بنجاح');
-        updateCallStatus('المكالمة متصلة', 'connected');
-      }).catch(err => {
-        console.error('❌ خطأ في تشغيل الفيديو البعيد للرد:', err);
-      });
+      // تأكد من عدم وجود مصدر سابق
+      if (remoteVideo.srcObject !== remoteStream) {
+        remoteVideo.srcObject = remoteStream;
+        
+        // انتظار قصير قبل التشغيل لتجنب التداخل
+        setTimeout(() => {
+          remoteVideo.play().then(() => {
+            console.log('✅ تم تشغيل الفيديو البعيد للرد بنجاح');
+            updateCallStatus('المكالمة متصلة', 'connected');
+          }).catch(err => {
+            console.warn('⚠️ تحذير في تشغيل الفيديو البعيد للرد:', err.message);
+            // المحاولة مرة أخرى بعد وقت قصير
+            setTimeout(() => {
+              remoteVideo.play().catch(() => {
+                console.log('ℹ️ الفيديو البعيد للرد سيتم تشغيله تلقائياً');
+              });
+            }, 500);
+          });
+        }, 100);
+      }
       
       isCallActive = true;
       showEndCallButton();
@@ -484,6 +514,9 @@ function endCall() {
   updateCallStatus('', '');
   updateCallButtons(true); // هذا سيخفي زر إنهاء المكالمة ويظهر أزرار البدء
   
+  // إخفاء أدوات التحكم في الكاميرا
+  hideCameraControls();
+  
   // إشعار الطرف الآخر
   socket.emit("end-call", { to: "all" });
 }
@@ -574,6 +607,232 @@ window.addEventListener('beforeunload', () => {
     endCall();
   }
 });
+
+// === وظائف التحكم في الكاميرا ===
+
+// متغيرات للتحكم في الكاميرا
+let currentCameraFacing = 'user'; // 'user' للأمامية، 'environment' للخلفية
+let isMuted = false;
+let isVideoEnabled = true;
+let currentZoom = 1;
+let currentFilter = 'none';
+let capturedPhotos = [];
+
+// تبديل الكاميرا (أمامية/خلفية)
+async function switchCamera() {
+  if (!localStream) {
+    console.warn('⚠️ لا توجد كاميرا نشطة للتبديل');
+    return;
+  }
+
+  try {
+    console.log('🔄 تبديل الكاميرا من', currentCameraFacing);
+    
+    // إيقاف المسارات الحالية
+    localStream.getTracks().forEach(track => track.stop());
+    
+    // تبديل اتجاه الكاميرا
+    currentCameraFacing = currentCameraFacing === 'user' ? 'environment' : 'user';
+    
+    // الحصول على كاميرا جديدة
+    const newStream = await navigator.mediaDevices.getUserMedia({
+      video: { 
+        facingMode: currentCameraFacing,
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      },
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        sampleRate: 44100
+      }
+    });
+    
+    localStream = newStream;
+    localVideo.srcObject = localStream;
+    
+    // تحديث المسارات في الاتصال
+    if (peerConnection && isCallActive) {
+      const sender = peerConnection.getSenders().find(s => 
+        s.track && s.track.kind === 'video'
+      );
+      if (sender) {
+        await sender.replaceTrack(localStream.getVideoTracks()[0]);
+        console.log('✅ تم تحديث مسار الفيديو في الاتصال');
+      }
+    }
+    
+    // إعادة تطبيق الفلتر والتكبير
+    applyFilter(currentFilter);
+    adjustZoom(currentZoom);
+    
+    console.log('✅ تم تبديل الكاميرا إلى:', currentCameraFacing);
+    
+  } catch (error) {
+    console.error('❌ خطأ في تبديل الكاميرا:', error);
+    // العودة للكاميرا السابقة
+    currentCameraFacing = currentCameraFacing === 'user' ? 'environment' : 'user';
+  }
+}
+
+// كتم/إلغاء كتم الصوت
+function toggleMute() {
+  if (!localStream) return;
+  
+  const audioTrack = localStream.getAudioTracks()[0];
+  if (audioTrack) {
+    isMuted = !isMuted;
+    audioTrack.enabled = !isMuted;
+    
+    const muteBtn = document.getElementById('muteBtn');
+    muteBtn.textContent = isMuted ? '🔇' : '🎤';
+    muteBtn.classList.toggle('active', isMuted);
+    muteBtn.title = isMuted ? 'إلغاء كتم الصوت' : 'كتم الصوت';
+    
+    console.log(isMuted ? '🔇 تم كتم الصوت' : '🎤 تم إلغاء كتم الصوت');
+  }
+}
+
+// تشغيل/إيقاف الفيديو
+function toggleVideo() {
+  if (!localStream) return;
+  
+  const videoTrack = localStream.getVideoTracks()[0];
+  if (videoTrack) {
+    isVideoEnabled = !isVideoEnabled;
+    videoTrack.enabled = isVideoEnabled;
+    
+    const videoBtn = document.getElementById('videoBtn');
+    videoBtn.textContent = isVideoEnabled ? '📹' : '📷';
+    videoBtn.classList.toggle('active', !isVideoEnabled);
+    videoBtn.title = isVideoEnabled ? 'إيقاف الفيديو' : 'تشغيل الفيديو';
+    
+    console.log(isVideoEnabled ? '📹 تم تشغيل الفيديو' : '📷 تم إيقاف الفيديو');
+  }
+}
+
+// تعديل التكبير
+function adjustZoom(value) {
+  currentZoom = parseFloat(value);
+  const zoomValue = document.getElementById('zoomValue');
+  zoomValue.textContent = currentZoom.toFixed(1) + 'x';
+  
+  localVideo.style.transform = `scale(${currentZoom})`;
+  console.log('🔍 تم تعديل التكبير إلى:', currentZoom);
+}
+
+// تطبيق الفلاتر
+function applyFilter(filterType) {
+  currentFilter = filterType;
+  
+  // إزالة جميع فئات الفلاتر السابقة
+  localVideo.className = localVideo.className.replace(/video-filter-\w+/g, '');
+  
+  // إضافة الفلتر الجديد
+  if (filterType !== 'none') {
+    localVideo.classList.add(`video-filter-${filterType}`);
+  }
+  
+  console.log('🎨 تم تطبيق الفلتر:', filterType);
+}
+
+// التقاط صورة
+function capturePhoto() {
+  if (!localStream) {
+    console.warn('⚠️ لا توجد كاميرا نشطة لالتقاط الصورة');
+    return;
+  }
+
+  try {
+    // إنشاء canvas لالتقاط الصورة
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // تعيين أبعاد الصورة
+    canvas.width = localVideo.videoWidth || 640;
+    canvas.height = localVideo.videoHeight || 480;
+    
+    // رسم الفيديو على Canvas
+    ctx.drawImage(localVideo, 0, 0, canvas.width, canvas.height);
+    
+    // تحويل إلى صورة
+    const imageData = canvas.toDataURL('image/jpeg', 0.9);
+    const timestamp = new Date().toLocaleString('ar-SA');
+    
+    // إضافة الصورة للمجموعة
+    const photo = {
+      id: Date.now(),
+      data: imageData,
+      timestamp: timestamp,
+      filter: currentFilter,
+      zoom: currentZoom
+    };
+    
+    capturedPhotos.push(photo);
+    displayCapturedPhoto(photo);
+    
+    // إظهار منطقة الصور
+    const capturedPhotosDiv = document.getElementById('capturedPhotos');
+    capturedPhotosDiv.style.display = 'block';
+    
+    console.log('📸 تم التقاط صورة بنجاح');
+    
+    // تأثير فلاش
+    localVideo.style.filter = 'brightness(2)';
+    setTimeout(() => {
+      applyFilter(currentFilter); // إعادة الفلتر الأصلي
+    }, 100);
+    
+  } catch (error) {
+    console.error('❌ خطأ في التقاط الصورة:', error);
+  }
+}
+
+// عرض الصورة المُلتقطة
+function displayCapturedPhoto(photo) {
+  const photosContainer = document.getElementById('photosContainer');
+  
+  const photoDiv = document.createElement('div');
+  photoDiv.className = 'photo-item';
+  photoDiv.innerHTML = `
+    <img src="${photo.data}" alt="صورة ملتقطة">
+    <div class="photo-info">
+      ${photo.timestamp}
+    </div>
+    <button class="download-btn" onclick="downloadPhoto('${photo.id}')" title="تحميل الصورة">
+      ⬇️
+    </button>
+  `;
+  
+  photosContainer.appendChild(photoDiv);
+}
+
+// تحميل الصورة
+function downloadPhoto(photoId) {
+  const photo = capturedPhotos.find(p => p.id == photoId);
+  if (!photo) return;
+  
+  const link = document.createElement('a');
+  link.download = `family-photo-${photo.timestamp.replace(/[/:]/g, '-')}.jpg`;
+  link.href = photo.data;
+  link.click();
+  
+  console.log('⬇️ تم تحميل الصورة');
+}
+
+// إظهار/إخفاء أدوات التحكم
+function showCameraControls() {
+  const controls = document.getElementById('cameraControls');
+  controls.style.display = 'block';
+  console.log('🎛️ تم إظهار أدوات التحكم في الكاميرا');
+}
+
+function hideCameraControls() {
+  const controls = document.getElementById('cameraControls');
+  controls.style.display = 'none';
+  console.log('🎛️ تم إخفاء أدوات التحكم في الكاميرا');
+}
 
 // === دالة التشخيص ===
 function diagnoseConnection() {

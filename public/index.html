@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>👨‍👩‍👧‍👦 تطبيق العائلة - Family Chat</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <meta name="theme-color" content="#667eea">
+  <meta name="description" content="تطبيق دردشة عائلي مع مكالمات فيديو وصوتية عبر الإنترنت">
+</head>
+<body>
+  <!-- شاشة الترحيب للمدعوين -->
+  <div id="welcomeScreen" class="welcome-screen" style="display: none;">
+    <div class="welcome-content">
+      <h1>🎉 مرحباً بك في دردشة العائلة!</h1>
+      <div id="welcomeMessage" class="welcome-message"></div>
+      <div class="welcome-actions">
+        <input type="text" id="guestNameInput" placeholder="اكتب اسمك (اختياري)" maxlength="15">
+        <button onclick="joinFamily()" id="joinBtn">🚀 انضمام للعائلة</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container" id="mainApp">
+    <header>
+      <h1>👨‍👩‍👧‍👦 تطبيق العائلة</h1>
+      <div class="status">
+        <span id="connectionStatus">🔴 غير متصل</span>
+        <span id="userCount">المتصلين: 0</span>
+      </div>
+    </header>
+
+    <main>
+      <!-- قسم الدردشة -->
+      <section class="chat-section">
+        <h3>💬 الدردشة العائلية</h3>
+        <div id="messages" class="messages-container"></div>
+        <div class="message-input">
+          <input id="msgBox" type="text" placeholder="اكتب رسالة للعائلة..." maxlength="500">
+          <button onclick="sendMessage()" id="sendBtn">إرسال</button>
+        </div>
+      </section>
+
+      <!-- قسم المكالمات -->
+      <section class="call-section">
+        <h3>📹 مكالمات الفيديو</h3>
+        <div class="call-controls">
+          <button onclick="startCall()" id="startCallBtn">📞 بدء مكالمة فيديو</button>
+          <button onclick="startAudioCall()" id="startAudioBtn">🎤 مكالمة صوتية</button>
+          <button onclick="endCall()" id="endCallBtn" style="display: none;">❌ إنهاء المكالمة</button>
+        </div>
+        
+        <div id="callStatus" class="call-status"></div>
+        
+        <div id="videos" class="videos-container">
+          <div class="video-wrapper">
+            <video id="localVideo" autoplay playsinline muted></video>
+            <label>أنت</label>
+          </div>
+          <div class="video-wrapper">
+            <video id="remoteVideo" autoplay playsinline></video>
+            <label>العضو الآخر</label>
+          </div>
+        </div>
+      </section>
+
+      <!-- قائمة المستخدمين المتصلين -->
+      <section class="users-section">
+        <h3>👥 الأعضاء المتصلين</h3>
+        <div id="usersList" class="users-list"></div>
+        
+        <!-- قسم دعوة أفراد العائلة -->
+        <div class="invite-section">
+          <h4>🔗 دعوة أفراد العائلة</h4>
+          <div class="invite-controls">
+            <input type="text" id="familyNameInput" placeholder="اسم العائلة (اختياري)" maxlength="20">
+            <button onclick="createInviteLink()" id="createInviteBtn">إنشاء رابط دعوة</button>
+          </div>
+          <div id="inviteResult" class="invite-result" style="display: none;">
+            <div class="invite-info">
+              <p><strong>رابط الدعوة جاهز! 🎉</strong></p>
+              
+              <!-- رابط للجوال -->
+              <div class="invite-link-section">
+                <label>📱 للهاتف الجوال:</label>
+                <div class="invite-link-container">
+                  <input type="text" id="mobileInviteLinkText" readonly>
+                  <button onclick="copyMobileInviteLink()" id="copyMobileBtn">📋 نسخ</button>
+                </div>
+              </div>
+              
+              <!-- رابط للكمبيوتر -->
+              <div class="invite-link-section">
+                <label>💻 للكمبيوتر:</label>
+                <div class="invite-link-container">
+                  <input type="text" id="localInviteLinkText" readonly>
+                  <button onclick="copyLocalInviteLink()" id="copyLocalBtn">📋 نسخ</button>
+                </div>
+              </div>
+              
+              <p class="invite-details">
+                <small>صالح لمدة 24 ساعة • استخدم رابط الجوال للهواتف الذكية</small>
+              </p>
+            </div>
+            <div class="share-buttons">
+              <button onclick="shareViaWhatsApp()" class="whatsapp-btn">📱 مشاركة عبر WhatsApp</button>
+              <button onclick="shareViaEmail()" class="email-btn">📧 مشاركة عبر الإيميل</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>💝 تطبيق مصمم خصيصاً للعائلة</p>
+    </footer>
+  </div>
+
+  <!-- تحميل المكتبات -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

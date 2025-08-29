@@ -927,24 +927,95 @@ footer p {
   100% { left: 100%; }
 }
 
-/* === أدوات التحكم في الكاميرا === */
-.camera-controls {
+/* === زر إعدادات الكاميرا === */
+.camera-settings-btn {
   position: absolute;
-  bottom: 10px;
-  left: 10px;
+  top: 10px;
   right: 10px;
-  background: rgba(0, 0, 0, 0.8);
-  border-radius: 15px;
-  padding: 15px;
+  background: rgba(0, 0, 0, 0.7);
+  border: none;
+  border-radius: 50%;
+  width: 45px;
+  height: 45px;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  animation: slideUp 0.3s ease;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  z-index: 10;
+}
+
+.camera-settings-btn:hover {
+  background: rgba(102, 126, 234, 0.8);
+  transform: scale(1.1);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+/* === لوحة أدوات التحكم === */
+.camera-controls-panel {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  margin-top: 20px;
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  animation: slideDown 0.3s ease;
+  overflow: hidden;
+}
+
+.camera-controls-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 25px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+}
+
+.camera-controls-header h4 {
+  margin: 0;
+  font-size: 1.2em;
+  font-weight: 700;
+}
+
+.close-controls-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 50%;
+  width: 35px;
+  height: 35px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: white;
+}
+
+.close-controls-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.camera-controls-content {
+  padding: 25px;
 }
 
 @keyframes slideUp {
   from {
     opacity: 0;
     transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
   }
   to {
     opacity: 1;
@@ -964,28 +1035,32 @@ footer p {
   margin-bottom: 0;
 }
 
-.camera-controls button {
+.camera-controls-content button {
   background: linear-gradient(45deg, #667eea, #764ba2);
   border: none;
-  border-radius: 50%;
-  width: 45px;
-  height: 45px;
-  font-size: 18px;
+  border-radius: 15px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  font-family: 'Cairo', sans-serif;
+  flex: 1;
+  min-width: 140px;
 }
 
-.camera-controls button:hover {
-  transform: scale(1.1);
+.camera-controls-content button:hover {
+  transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
 }
 
-.camera-controls button:active {
-  transform: scale(0.95);
+.camera-controls-content button:active {
+  transform: translateY(0);
 }
 
-.camera-controls button.active {
+.camera-controls-content button.active {
   background: linear-gradient(45deg, #f093fb, #f5576c);
   animation: pulse 2s infinite;
 }
@@ -995,23 +1070,23 @@ footer p {
   50% { transform: scale(1.05); }
 }
 
-.camera-controls label {
-  color: white;
+.camera-controls-content label {
+  color: #2c3e50;
   font-size: 14px;
   font-weight: 600;
   min-width: 80px;
 }
 
-.camera-controls input[type="range"] {
+.camera-controls-content input[type="range"] {
   flex: 1;
   height: 6px;
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(102, 126, 234, 0.2);
   border-radius: 3px;
   outline: none;
   -webkit-appearance: none;
 }
 
-.camera-controls input[type="range"]::-webkit-slider-thumb {
+.camera-controls-content input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 20px;
   height: 20px;
@@ -1021,20 +1096,29 @@ footer p {
   box-shadow: 0 2px 10px rgba(102, 126, 234, 0.5);
 }
 
-.camera-controls select {
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 8px;
-  color: white;
-  padding: 8px 12px;
+.camera-controls-content select {
+  background: rgba(248, 249, 250, 0.9);
+  border: 2px solid rgba(102, 126, 234, 0.3);
+  border-radius: 10px;
+  color: #2c3e50;
+  padding: 10px 15px;
   font-size: 14px;
   outline: none;
   cursor: pointer;
+  font-family: 'Cairo', sans-serif;
+  font-weight: 600;
+  flex: 1;
 }
 
-.camera-controls select option {
-  background: #2c3e50;
-  color: white;
+.camera-controls-content select:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+.camera-controls-content select option {
+  background: white;
+  color: #2c3e50;
+  padding: 10px;
 }
 
 #zoomValue {
@@ -1140,27 +1224,50 @@ footer p {
 
 /* === تحسينات للهاتف الجوال === */
 @media (max-width: 768px) {
-  .camera-controls {
-    bottom: 5px;
-    left: 5px;
-    right: 5px;
-    padding: 10px;
+  .camera-settings-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+    top: 8px;
+    right: 8px;
+  }
+  
+  .camera-controls-panel {
+    margin-top: 15px;
+  }
+  
+  .camera-controls-header {
+    padding: 15px 20px;
+  }
+  
+  .camera-controls-header h4 {
+    font-size: 1.1em;
+  }
+  
+  .camera-controls-content {
+    padding: 20px;
   }
   
   .camera-row {
     gap: 8px;
-    margin-bottom: 8px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
   }
   
-  .camera-controls button {
-    width: 40px;
-    height: 40px;
-    font-size: 16px;
+  .camera-controls-content button {
+    min-width: 120px;
+    padding: 10px 15px;
+    font-size: 13px;
   }
   
-  .camera-controls label {
-    font-size: 12px;
-    min-width: 60px;
+  .camera-controls-content label {
+    font-size: 13px;
+    min-width: 70px;
+  }
+  
+  .camera-controls-content select {
+    padding: 8px 12px;
+    font-size: 13px;
   }
   
   .photos-container {

@@ -19,6 +19,7 @@
       <div id="welcomeMessage" class="welcome-message"></div>
       <div class="welcome-actions">
         <input type="text" id="guestNameInput" placeholder="اكتب اسمك (اختياري)" maxlength="15">
+        <input type="password" id="guestPasswordInput" placeholder="كلمة مرور الغرفة (إذا كانت مطلوبة)" maxlength="20" style="display: none;">
         <button onclick="joinFamily()" id="joinBtn">🚀 انضمام للعائلة</button>
       </div>
     </div>
@@ -136,6 +137,10 @@
           <h4>🔗 دعوة أفراد العائلة</h4>
           <div class="invite-controls">
             <input type="text" id="familyNameInput" placeholder="اسم العائلة (اختياري)" maxlength="20">
+            <input type="password" id="roomPasswordInput" placeholder="كلمة مرور الغرفة (اختياري)" maxlength="20">
+            <div class="password-info">
+              <small>💡 كلمة المرور تحمي الغرفة من الدخول غير المرغوب فيه</small>
+            </div>
             <button onclick="createInviteLink()" id="createInviteBtn">إنشاء رابط دعوة</button>
           </div>
           <div id="inviteResult" class="invite-result" style="display: none;">

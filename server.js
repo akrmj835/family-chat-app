@@ -51,7 +51,8 @@ io.on("connection", (socket) => {
   // إضافة المستخدم إلى القائمة
   connectedUsers[socket.id] = {
     id: socket.id,
-    joinTime: new Date()
+    joinTime: new Date(),
+    isTyping: false
   };
   
   // إرسال قائمة المستخدمين المتصلين للجميع

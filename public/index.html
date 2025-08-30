@@ -12,6 +12,12 @@
   <meta name="description" content="تطبيق دردشة عائلي مع مكالمات فيديو وصوتية عبر الإنترنت">
 </head>
 <body>
+  <!-- زر تبديل الوضع الليلي -->
+  <button class="theme-toggle" onclick="toggleTheme()" title="تبديل الوضع الليلي/النهاري">
+    <span class="icon sun-icon">☀️</span>
+    <span class="icon moon-icon">🌙</span>
+  </button>
+
   <!-- شاشة الترحيب للمدعوين -->
   <div id="welcomeScreen" class="welcome-screen" style="display: none;">
     <div class="welcome-content">
@@ -39,9 +45,55 @@
       <section class="chat-section">
         <h3>💬 الدردشة العائلية</h3>
         <div id="messages" class="messages-container"></div>
+        
+        <!-- مؤشر "يكتب الآن..." -->
+        <div id="typingIndicator" class="typing-indicator">
+          <span>يكتب الآن...</span>
+          <div class="typing-dots">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+          </div>
+        </div>
+        
         <div class="message-input">
-          <input id="msgBox" type="text" placeholder="اكتب رسالة للعائلة..." maxlength="500">
-          <button onclick="sendMessage()" id="sendBtn">إرسال</button>
+          <div class="chat-extras">
+            <!-- زر رفع الملفات -->
+            <button class="file-upload-btn" onclick="document.getElementById('fileInput').click()" title="رفع ملف">
+              📎
+            </button>
+            <input type="file" id="fileInput" accept="image/*,video/*,audio/*,.pdf,.doc,.docx" onchange="handleFileUpload(event)">
+            
+            <!-- زر الإيموجي -->
+            <button class="emoji-toggle" onclick="toggleEmojiPicker()" title="إضافة إيموجي">
+              😊
+            </button>
+            
+            <!-- إيموجي بيكر -->
+            <div id="emojiPicker" class="emoji-picker">
+              <div class="emoji-grid">
+                <div class="emoji-item" onclick="addEmoji('😀')">😀</div>
+                <div class="emoji-item" onclick="addEmoji('😂')">😂</div>
+                <div class="emoji-item" onclick="addEmoji('🥰')">🥰</div>
+                <div class="emoji-item" onclick="addEmoji('😍')">😍</div>
+                <div class="emoji-item" onclick="addEmoji('🤗')">🤗</div>
+                <div class="emoji-item" onclick="addEmoji('😊')">😊</div>
+                <div class="emoji-item" onclick="addEmoji('👍')">👍</div>
+                <div class="emoji-item" onclick="addEmoji('❤️')">❤️</div>
+                <div class="emoji-item" onclick="addEmoji('🎉')">🎉</div>
+                <div class="emoji-item" onclick="addEmoji('🔥')">🔥</div>
+                <div class="emoji-item" onclick="addEmoji('💯')">💯</div>
+                <div class="emoji-item" onclick="addEmoji('🙏')">🙏</div>
+                <div class="emoji-item" onclick="addEmoji('👨‍👩‍👧‍👦')">👨‍👩‍👧‍👦</div>
+                <div class="emoji-item" onclick="addEmoji('🏠')">🏠</div>
+                <div class="emoji-item" onclick="addEmoji('🌟')">🌟</div>
+                <div class="emoji-item" onclick="addEmoji('💕')">💕</div>
+              </div>
+            </div>
+          </div>
+          
+          <textarea id="msgBox" placeholder="اكتب رسالة للعائلة... (اضغط Enter للإرسال)" maxlength="500" rows="1"></textarea>
+          <button onclick="sendMessage()" id="sendBtn" class="btn">إرسال</button>
         </div>
       </section>
 
@@ -49,9 +101,26 @@
       <section class="call-section">
         <h3>📹 مكالمات الفيديو</h3>
         <div class="call-controls">
-          <button onclick="startCall()" id="startCallBtn">📞 بدء مكالمة فيديو</button>
-          <button onclick="startAudioCall()" id="startAudioBtn">🎤 مكالمة صوتية</button>
-          <button onclick="endCall()" id="endCallBtn" style="display: none;">❌ إنهاء المكالمة</button>
+          <button onclick="startCall()" id="startCallBtn" class="btn">بدء مكالمة فيديو</button>
+          <button onclick="startAudioCall()" id="startAudioBtn" class="btn">مكالمة صوتية</button>
+          <button onclick="endCall()" id="endCallBtn" class="btn" style="display: none;">إنهاء المكالمة</button>
+        </div>
+        
+        <!-- مؤقت المكالمة -->
+        <div id="callTimer" class="call-timer">
+          <span>مدة المكالمة: </span>
+          <span class="time" id="callTime">00:00</span>
+        </div>
+        
+        <!-- مؤشر جودة الاتصال -->
+        <div id="connectionQuality" class="connection-quality" style="display: none;">
+          <div class="quality-bars">
+            <div class="quality-bar"></div>
+            <div class="quality-bar"></div>
+            <div class="quality-bar"></div>
+            <div class="quality-bar"></div>
+          </div>
+          <span id="qualityText">ممتاز</span>
         </div>
         
         <div id="callStatus" class="call-status"></div>

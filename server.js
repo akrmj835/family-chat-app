@@ -177,9 +177,47 @@ io.on("connection", (socket) => {
     console.log(`✅ مستخدم دخل عبر رابط دعوة صحيح: ${inviteCode}`);
   });
 
+  // معالجة بدء الكتابة
+  socket.on("typing-start", () => {
+    if (connectedUsers[socket.id]) {
+      connectedUsers[socket.id].isTyping = true;
+    }
+    socket.broadcast.emit("typing-start", socket.id);
+  });
+
+  // معالجة إيقاف الكتابة
+  socket.on("typing-stop", () => {
+    if (connectedUsers[socket.id]) {
+      connectedUsers[socket.id].isTyping = false;
+    }
+    socket.broadcast.emit("typing-stop", socket.id);
+  });
+
+  // معالجة رفع الملفات
+  socket.on("file-upload", (fileData) => {
+    const messageData = {
+      senderId: socket.id,
+      name: fileData.name,
+      type: fileData.type,
+      size: fileData.size,
+      data: fileData.data,
+      timestamp: new Date().toLocaleTimeString('ar-SA')
+    };
+    
+    // إرسال الملف لجميع المستخدمين
+    io.emit("file-received", messageData);
+    console.log(`📎 ملف من ${socket.id}: ${fileData.name} (${(fileData.size / 1024).toFixed(1)} KB)`);
+  });
+
   // قطع الاتصال
   socket.on("disconnect", () => {
     console.log("❌ مستخدم خرج:", socket.id);
+    
+    // إيقاف الكتابة إذا كان يكتب
+    if (connectedUsers[socket.id] && connectedUsers[socket.id].isTyping) {
+      socket.broadcast.emit("typing-stop", socket.id);
+    }
+    
     delete connectedUsers[socket.id];
     io.emit("user-disconnected", socket.id);
     io.emit("users-update", Object.keys(connectedUsers));

@@ -129,21 +129,91 @@ socket.on('reconnect', () => {
 });
 
 // تحديث قائمة المستخدمين
+let previousUserCount = 0;
 socket.on('users-update', (users) => {
   const count = users.length;
   userCount.textContent = `المتصلين: ${count}`;
   
+  // تشغيل أصوات الانضمام/المغادرة
+  if (previousUserCount > 0) { // تجنب الصوت عند التحميل الأول
+    if (count > previousUserCount) {
+      // عضو جديد انضم
+      try {
+        playJoinSound();
+        showCopyNotification('🎉 انضم عضو جديد للعائلة!');
+      } catch (error) {
+        console.log('لا يمكن تشغيل صوت الانضمام:', error);
+      }
+    } else if (count < previousUserCount) {
+      // عضو غادر
+      try {
+        playLeaveSound();
+        showCopyNotification('👋 غادر أحد الأعضاء');
+      } catch (error) {
+        console.log('لا يمكن تشغيل صوت المغادرة:', error);
+      }
+    }
+  }
+  previousUserCount = count;
+  
   usersList.innerHTML = '';
-  users.forEach(userId => {
+  users.forEach((user, index) => {
     const userElement = document.createElement('div');
     userElement.className = 'user-item';
-    userElement.textContent = userId === socket.id ? 'أنت' : `مستخدم ${userId.substring(0, 6)}`;
+    
+    // استخدام الاسم الحقيقي إذا كان متوفراً
+    let displayName;
+    if (typeof user === 'object' && user.name) {
+      displayName = user.id === socket.id ? `أنت (${user.name})` : user.name;
+    } else {
+      const userId = typeof user === 'object' ? user.id : user;
+      displayName = userId === socket.id ? 'أنت' : `عضو العائلة ${index + 1}`;
+    }
+    
+    userElement.textContent = displayName;
     usersList.appendChild(userElement);
   });
+  
+  // تحديث أسماء الفيديوهات
+  updateVideoLabels(users);
   
   // تمكين أزرار المكالمة إذا كان هناك أكثر من مستخدم
   updateCallButtons(count > 1 && !isCallActive);
 });
+
+// تحديث أسماء الفيديوهات
+function updateVideoLabels(users) {
+  const localVideoLabel = document.querySelector('#localVideo + label');
+  const remoteVideoLabel = document.querySelector('#remoteVideo + label');
+  
+  if (localVideoLabel) {
+    const currentUser = users.find(user => {
+      const userId = typeof user === 'object' ? user.id : user;
+      return userId === socket.id;
+    });
+    
+    if (currentUser && typeof currentUser === 'object' && currentUser.name) {
+      localVideoLabel.textContent = `أنت (${currentUser.name})`;
+    } else {
+      localVideoLabel.textContent = 'أنت';
+    }
+  }
+  
+  if (remoteVideoLabel && users.length > 1) {
+    const otherUser = users.find(user => {
+      const userId = typeof user === 'object' ? user.id : user;
+      return userId !== socket.id;
+    });
+    
+    if (otherUser) {
+      if (typeof otherUser === 'object' && otherUser.name) {
+        remoteVideoLabel.textContent = otherUser.name;
+      } else {
+        remoteVideoLabel.textContent = 'عضو العائلة';
+      }
+    }
+  }
+}
 
 // === وظائف الرسائل النصية ===
 function sendMessage() {
@@ -154,6 +224,22 @@ function sendMessage() {
     msgBox.focus();
   }
 }
+
+// إعداد الإرسال بـ Enter
+document.addEventListener('DOMContentLoaded', function() {
+  const msgBox = document.getElementById('msgBox');
+  if (msgBox) {
+    msgBox.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+    
+    // إضافة تلميح للمستخدم
+    msgBox.placeholder = 'اكتب رسالة للعائلة... (اضغط Enter للإرسال)';
+  }
+});
 
 socket.on("chat-message", (data) => {
   const messageDiv = document.createElement("div");
@@ -171,9 +257,13 @@ socket.on("chat-message", (data) => {
   messages.appendChild(messageDiv);
   messages.scrollTop = messages.scrollHeight;
   
-  // تأثير صوتي بسيط للرسائل الجديدة (اختياري)
+  // تشغيل صوت للرسائل الواردة فقط (ليس للرسائل المرسلة)
   if (!isOwnMessage) {
-    playNotificationSound();
+    try {
+      playNotificationSound();
+    } catch (error) {
+      console.log('لا يمكن تشغيل الصوت:', error);
+    }
   }
 });
 
@@ -883,6 +973,90 @@ function toggleCameraControls() {
   }
 }
 
+// === وظائف الأصوات والإشعارات ===
+function playNotificationSound() {
+  // إنشاء صوت إشعار بسيط
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+  
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+  
+  oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+  oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1);
+  
+  gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+  
+  oscillator.start(audioContext.currentTime);
+  oscillator.stop(audioContext.currentTime + 0.3);
+}
+
+function playJoinSound() {
+  // صوت انضمام عضو جديد
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+  
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+  
+  oscillator.frequency.setValueAtTime(523, audioContext.currentTime); // C5
+  oscillator.frequency.setValueAtTime(659, audioContext.currentTime + 0.1); // E5
+  oscillator.frequency.setValueAtTime(784, audioContext.currentTime + 0.2); // G5
+  
+  gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+  
+  oscillator.start(audioContext.currentTime);
+  oscillator.stop(audioContext.currentTime + 0.4);
+}
+
+function playLeaveSound() {
+  // صوت مغادرة عضو
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+  
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+  
+  oscillator.frequency.setValueAtTime(784, audioContext.currentTime); // G5
+  oscillator.frequency.setValueAtTime(659, audioContext.currentTime + 0.1); // E5
+  oscillator.frequency.setValueAtTime(523, audioContext.currentTime + 0.2); // C5
+  
+  gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+  
+  oscillator.start(audioContext.currentTime);
+  oscillator.stop(audioContext.currentTime + 0.4);
+}
+
+// === وظيفة إظهار إشعار النسخ ===
+function showCopyNotification(message) {
+  // إزالة أي إشعار موجود
+  const existingNotification = document.querySelector('.copy-notification');
+  if (existingNotification) {
+    existingNotification.remove();
+  }
+  
+  // إنشاء إشعار جديد
+  const notification = document.createElement('div');
+  notification.className = 'copy-notification';
+  notification.textContent = message;
+  
+  // إضافة الإشعار للصفحة
+  document.body.appendChild(notification);
+  
+  // إزالة الإشعار بعد 3 ثوانٍ
+  setTimeout(() => {
+    if (notification && notification.parentNode) {
+      notification.remove();
+    }
+  }, 3000);
+}
+
 // === دالة التشخيص ===
 function diagnoseConnection() {
   console.log('🔍 تشخيص الاتصال:');
@@ -926,6 +1100,15 @@ window.diagnoseConnection = diagnoseConnection;
 
 // إظهار شاشة الترحيب للمدعوين
 function showWelcomeScreen(inviteCode) {
+  const welcomeMessage = document.getElementById('welcomeMessage');
+  const guestPasswordInput = document.getElementById('guestPasswordInput');
+  
+  // رسالة ترحيب أساسية
+  welcomeMessage.innerHTML = `
+    <p>🏠 مرحباً بك في تطبيق العائلة!</p>
+    <p>💬 استمتع بالدردشة ومكالمات الفيديو!</p>
+  `;
+  
   welcomeScreen.style.display = 'flex';
   mainApp.style.display = 'none';
   
@@ -941,7 +1124,39 @@ function showMainApp() {
 
 // الانضمام للعائلة
 function joinFamily() {
+  const guestPasswordInput = document.getElementById('guestPasswordInput');
+  const joinBtn = document.getElementById('joinBtn');
+  
   guestName = guestNameInput.value.trim() || 'ضيف';
+  const enteredPassword = guestPasswordInput ? guestPasswordInput.value.trim() : '';
+  
+  // تعطيل الزر أثناء المعالجة
+  if (joinBtn) {
+    joinBtn.disabled = true;
+    joinBtn.textContent = '⏳ جاري الانضمام...';
+  }
+  
+  // التحقق من كلمة المرور إذا كانت مطلوبة
+  const urlParams = new URLSearchParams(window.location.search);
+  const requiresPassword = urlParams.get('protected') === 'true';
+  
+  if (requiresPassword && !enteredPassword) {
+    alert('🔒 هذه الغرفة محمية بكلمة مرور. يرجى إدخال كلمة المرور للانضمام.');
+    if (joinBtn) {
+      joinBtn.disabled = false;
+      joinBtn.textContent = '🚀 انضمام للعائلة';
+    }
+    return;
+  }
+  
+  // إرسال طلب الانضمام مع كلمة المرور
+  socket.emit('join-room', {
+    guestName: guestName,
+    password: enteredPassword,
+    inviteId: urlParams.get('invite')
+  });
+  
+  // إظهار التطبيق الرئيسي (سيتم إخفاؤه إذا فشلت كلمة المرور)
   showMainApp();
   
   // إرسال رسالة ترحيب
@@ -958,13 +1173,23 @@ function createInviteLink() {
     return;
   }
   
+  const roomPasswordInput = document.getElementById('roomPasswordInput');
+  const createInviteBtn = document.getElementById('createInviteBtn');
+  
+  if (createInviteBtn) {
+    createInviteBtn.disabled = true;
+    createInviteBtn.textContent = '⏳ جاري الإنشاء...';
+  }
+  
   familyName = familyNameInput.value.trim() || 'العائلة';
+  const roomPassword = roomPasswordInput ? roomPasswordInput.value.trim() : '';
   const baseUrl = window.location.origin + window.location.pathname.replace(/\/$/, '');
   
-  console.log('إرسال طلب إنشاء دعوة:', { familyName, baseUrl });
+  console.log('إرسال طلب إنشاء دعوة:', { familyName, hasPassword: !!roomPassword, baseUrl });
   
   socket.emit('create-invite', {
     familyName: familyName,
+    roomPassword: roomPassword,
     baseUrl: baseUrl
   });
 }
@@ -983,6 +1208,9 @@ function copyMobileInviteLink() {
       const originalText = copyBtn.textContent;
       copyBtn.textContent = '✅ تم النسخ!';
       copyBtn.style.background = '#4CAF50';
+      
+      // إظهار إشعار النسخ
+      showCopyNotification('📱 تم نسخ رابط الجوال بنجاح!');
       
       setTimeout(() => {
         copyBtn.textContent = originalText;
@@ -1008,6 +1236,9 @@ function copyLocalInviteLink() {
       const originalText = copyBtn.textContent;
       copyBtn.textContent = '✅ تم النسخ!';
       copyBtn.style.background = '#4CAF50';
+      
+      // إظهار إشعار النسخ
+      showCopyNotification('💻 تم نسخ رابط الكمبيوتر بنجاح!');
       
       setTimeout(() => {
         copyBtn.textContent = originalText;

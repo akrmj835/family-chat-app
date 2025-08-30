@@ -56,6 +56,13 @@ let currentLocalInviteLink = '';
 let guestName = '';
 let familyName = '';
 
+// متغيرات التحسينات الجديدة
+let callStartTime = null;
+let callTimerInterval = null;
+let typingTimeout = null;
+let isTyping = false;
+let currentTheme = localStorage.getItem('theme') || 'light';
+
 // تهيئة التطبيق عند التحميل
 document.addEventListener('DOMContentLoaded', function() {
   // تعريف عناصر الدعوة
@@ -67,6 +74,9 @@ document.addEventListener('DOMContentLoaded', function() {
   inviteResult = document.getElementById("inviteResult");
   mobileInviteLinkText = document.getElementById("mobileInviteLinkText");
   localInviteLinkText = document.getElementById("localInviteLinkText");
+  
+  // تطبيق الوضع المحفوظ
+  applyTheme(currentTheme);
   
   // التحقق من وجود رابط دعوة في الرابط
   const urlParams = new URLSearchParams(window.location.search);
@@ -82,9 +92,16 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // إضافة مستمع للضغط على Enter في صندوق الرسائل
   msgBox.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
       sendMessage();
     }
+  });
+  
+  // إضافة مستمع للكتابة
+  msgBox.addEventListener('input', function() {
+    handleTyping();
+    autoResizeTextarea(this);
   });
   
   // إضافة مستمع للضغط على Enter في اسم الضيف
@@ -95,6 +112,16 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
+  
+  // إغلاق الإيموجي بيكر عند النقر خارجه
+  document.addEventListener('click', function(e) {
+    const emojiPicker = document.getElementById('emojiPicker');
+    const emojiToggle = document.querySelector('.emoji-toggle');
+    
+    if (!emojiPicker.contains(e.target) && !emojiToggle.contains(e.target)) {
+      emojiPicker.classList.remove('show');
+    }
+  });
   
   // تعطيل أزرار المكالمة في البداية
   updateCallButtons(false);
@@ -1216,6 +1243,189 @@ function diagnoseConnection() {
 // إضافة زر التشخيص للوحة التحكم
 window.diagnoseConnection = diagnoseConnection;
 
+// === الوظائف الجديدة المحسنة ===
+
+// تبديل الوضع الليلي/النهاري
+function toggleTheme() {
+  currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+  applyTheme(currentTheme);
+  localStorage.setItem('theme', currentTheme);
+  
+  // إشعار بالتغيير
+  showNotification(
+    currentTheme === 'dark' ? '🌙 تم تفعيل الوضع الليلي' : '☀️ تم تفعيل الوضع النهاري',
+    'info'
+  );
+}
+
+// تطبيق الوضع
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+}
+
+// إظهار/إخفاء الإيموجي بيكر
+function toggleEmojiPicker() {
+  const emojiPicker = document.getElementById('emojiPicker');
+  emojiPicker.classList.toggle('show');
+}
+
+// إضافة إيموجي للرسالة
+function addEmoji(emoji) {
+  const msgBox = document.getElementById('msgBox');
+  const cursorPos = msgBox.selectionStart;
+  const textBefore = msgBox.value.substring(0, cursorPos);
+  const textAfter = msgBox.value.substring(cursorPos);
+  
+  msgBox.value = textBefore + emoji + textAfter;
+  msgBox.focus();
+  msgBox.setSelectionRange(cursorPos + emoji.length, cursorPos + emoji.length);
+  
+  // إخفاء الإيموجي بيكر
+  document.getElementById('emojiPicker').classList.remove('show');
+  
+  // تحديث حجم النص
+  autoResizeTextarea(msgBox);
+}
+
+// تغيير حجم صندوق النص تلقائياً
+function autoResizeTextarea(textarea) {
+  textarea.style.height = 'auto';
+  textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+}
+
+// معالجة الكتابة
+function handleTyping() {
+  if (!isTyping) {
+    isTyping = true;
+    socket.emit('typing-start');
+  }
+  
+  // إلغاء المؤقت السابق
+  clearTimeout(typingTimeout);
+  
+  // إيقاف الكتابة بعد 3 ثوان
+  typingTimeout = setTimeout(() => {
+    isTyping = false;
+    socket.emit('typing-stop');
+  }, 3000);
+}
+
+// معالجة رفع الملفات
+function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  // التحقق من حجم الملف (5MB كحد أقصى)
+  if (file.size > 5 * 1024 * 1024) {
+    showNotification('❌ حجم الملف كبير جداً (الحد الأقصى 5MB)', 'error');
+    return;
+  }
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const fileData = {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      data: e.target.result
+    };
+    
+    // إرسال الملف
+    socket.emit('file-upload', fileData);
+    showNotification('📎 تم رفع الملف بنجاح', 'success');
+  };
+  
+  reader.readAsDataURL(file);
+  
+  // إعادة تعيين قيمة الإدخال
+  event.target.value = '';
+}
+
+// بدء مؤقت المكالمة
+function startCallTimer() {
+  callStartTime = Date.now();
+  const callTimer = document.getElementById('callTimer');
+  const callTime = document.getElementById('callTime');
+  
+  callTimer.classList.add('show');
+  
+  callTimerInterval = setInterval(() => {
+    const elapsed = Date.now() - callStartTime;
+    const minutes = Math.floor(elapsed / 60000);
+    const seconds = Math.floor((elapsed % 60000) / 1000);
+    
+    callTime.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }, 1000);
+}
+
+// إيقاف مؤقت المكالمة
+function stopCallTimer() {
+  if (callTimerInterval) {
+    clearInterval(callTimerInterval);
+    callTimerInterval = null;
+  }
+  
+  const callTimer = document.getElementById('callTimer');
+  callTimer.classList.remove('show');
+  
+  callStartTime = null;
+}
+
+// تحديث مؤشر جودة الاتصال
+function updateConnectionQuality(quality) {
+  const qualityElement = document.getElementById('connectionQuality');
+  const qualityText = document.getElementById('qualityText');
+  
+  if (!qualityElement || !qualityText) return;
+  
+  // إزالة الفئات السابقة
+  qualityElement.className = 'connection-quality';
+  
+  let text = '';
+  switch (quality) {
+    case 'excellent':
+      qualityElement.classList.add('excellent');
+      text = 'ممتاز';
+      break;
+    case 'good':
+      qualityElement.classList.add('good');
+      text = 'جيد';
+      break;
+    case 'poor':
+      qualityElement.classList.add('poor');
+      text = 'ضعيف';
+      break;
+    case 'very-poor':
+      qualityElement.classList.add('very-poor');
+      text = 'ضعيف جداً';
+      break;
+    default:
+      text = 'غير معروف';
+  }
+  
+  qualityText.textContent = text;
+  qualityElement.style.display = 'flex';
+}
+
+// إظهار الإشعارات
+function showNotification(message, type = 'info', duration = 3000) {
+  const notification = document.createElement('div');
+  notification.className = `notification ${type}`;
+  notification.textContent = message;
+  
+  document.body.appendChild(notification);
+  
+  // إزالة الإشعار بعد المدة المحددة
+  setTimeout(() => {
+    notification.classList.add('hide');
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 300);
+  }, duration);
+}
+
 // === وظائف الدعوة ===
 
 // إظهار شاشة الترحيب للمدعوين
@@ -1438,3 +1648,142 @@ socket.on('invite-invalid', (data) => {
 function goToMainApp() {
   window.location.href = window.location.origin + window.location.pathname;
 }
+
+// === معالجات الأحداث الجديدة ===
+
+// معالجة بدء الكتابة
+socket.on('typing-start', (userId) => {
+  if (userId !== socket.id) {
+    const typingIndicator = document.getElementById('typingIndicator');
+    if (typingIndicator) {
+      typingIndicator.classList.add('show');
+    }
+  }
+});
+
+// معالجة إيقاف الكتابة
+socket.on('typing-stop', (userId) => {
+  if (userId !== socket.id) {
+    const typingIndicator = document.getElementById('typingIndicator');
+    if (typingIndicator) {
+      typingIndicator.classList.remove('show');
+    }
+  }
+});
+
+// معالجة استلام الملفات
+socket.on('file-received', (fileData) => {
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'message file-message fade-in';
+  
+  const isOwnMessage = fileData.senderId === socket.id;
+  messageDiv.classList.add(isOwnMessage ? 'own' : 'other');
+  
+  const senderName = isOwnMessage ? 'أنت' : `مستخدم ${fileData.senderId.substring(0, 6)}`;
+  
+  let fileContent = '';
+  if (fileData.type.startsWith('image/')) {
+    fileContent = `<img src="${fileData.data}" alt="${fileData.name}" style="max-width: 200px; border-radius: 8px; cursor: pointer;" onclick="openImageModal(this.src)">`;
+  } else if (fileData.type.startsWith('video/')) {
+    fileContent = `<video controls style="max-width: 200px; border-radius: 8px;"><source src="${fileData.data}" type="${fileData.type}"></video>`;
+  } else if (fileData.type.startsWith('audio/')) {
+    fileContent = `<audio controls><source src="${fileData.data}" type="${fileData.type}"></audio>`;
+  } else {
+    fileContent = `<div class="file-info">📎 ${fileData.name} (${(fileData.size / 1024).toFixed(1)} KB)</div>`;
+  }
+  
+  messageDiv.innerHTML = `
+    <div class="sender">${senderName}</div>
+    <div class="file-content">${fileContent}</div>
+    <div class="time">${fileData.timestamp}</div>
+  `;
+  
+  messages.appendChild(messageDiv);
+  messages.scrollTop = messages.scrollHeight;
+  
+  if (!isOwnMessage) {
+    playNotificationSound();
+    showNotification(`📎 ${senderName} أرسل ملف: ${fileData.name}`, 'info');
+  }
+});
+
+// فتح الصورة في نافذة منبثقة
+function openImageModal(src) {
+  const modal = document.createElement('div');
+  modal.className = 'image-modal';
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    cursor: pointer;
+  `;
+  
+  const img = document.createElement('img');
+  img.src = src;
+  img.style.cssText = `
+    max-width: 90%;
+    max-height: 90%;
+    border-radius: 10px;
+    box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+  `;
+  
+  modal.appendChild(img);
+  document.body.appendChild(modal);
+  
+  modal.onclick = () => {
+    document.body.removeChild(modal);
+  };
+}
+
+// تحديث وظائف المكالمة لتشمل المؤقت والجودة
+const originalStartCall = startCall;
+startCall = async function() {
+  await originalStartCall.call(this);
+  
+  // بدء المؤقت عند بدء المكالمة
+  if (isCallActive) {
+    startCallTimer();
+    updateConnectionQuality('excellent'); // افتراضي
+    
+    // مراقبة جودة الاتصال
+    if (peerConnection) {
+      setInterval(() => {
+        peerConnection.getStats().then(stats => {
+          stats.forEach(report => {
+            if (report.type === 'inbound-rtp' && report.mediaType === 'video') {
+              const packetsLost = report.packetsLost || 0;
+              const packetsReceived = report.packetsReceived || 0;
+              const lossRate = packetsLost / (packetsLost + packetsReceived);
+              
+              let quality = 'excellent';
+              if (lossRate > 0.05) quality = 'poor';
+              else if (lossRate > 0.02) quality = 'good';
+              else if (lossRate > 0.01) quality = 'good';
+              
+              updateConnectionQuality(quality);
+            }
+          });
+        });
+      }, 5000);
+    }
+  }
+};
+
+const originalEndCall = endCall;
+endCall = function() {
+  stopCallTimer();
+  
+  const qualityElement = document.getElementById('connectionQuality');
+  if (qualityElement) {
+    qualityElement.style.display = 'none';
+  }
+  
+  originalEndCall.call(this);
+};

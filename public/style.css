@@ -1843,6 +1843,139 @@ footer p {
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 }
 
+/* إيموجي بيكر */
+.emoji-picker {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  box-shadow: var(--shadow-xl);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px) scale(0.95);
+  transition: var(--transition-normal);
+  max-width: 280px;
+}
+
+.emoji-picker.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 0.5rem;
+}
+
+.emoji-item {
+  padding: 0.5rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  text-align: center;
+  font-size: 1.2rem;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.emoji-item:hover {
+  background: var(--primary-color);
+  transform: scale(1.2);
+  box-shadow: var(--shadow-md);
+}
+
+/* أزرار إضافية للدردشة */
+.chat-extras {
+  display: flex;
+  gap: 0.5rem;
+  position: relative;
+}
+
+.file-upload-btn,
+.emoji-toggle {
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-normal);
+  font-size: 1.2rem;
+  backdrop-filter: blur(10px);
+}
+
+.file-upload-btn:hover,
+.emoji-toggle:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+#fileInput {
+  display: none;
+}
+
+/* رسائل الملفات */
+.file-message .file-content {
+  margin: 0.5rem 0;
+}
+
+.file-info {
+  padding: 0.75rem 1rem;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-md);
+  border: 1px dashed rgba(0, 0, 0, 0.2);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+/* الإشعارات */
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 1rem 1.5rem;
+  border-radius: var(--radius-lg);
+  color: white;
+  font-weight: 600;
+  z-index: 10000;
+  transform: translateX(100%);
+  transition: var(--transition-normal);
+  box-shadow: var(--shadow-xl);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  max-width: 300px;
+}
+
+.notification:not(.hide) {
+  transform: translateX(0);
+}
+
+.notification.hide {
+  transform: translateX(100%);
+  opacity: 0;
+}
+
+.notification.info {
+  background: linear-gradient(135deg, var(--info-color), #1e40af);
+}
+
+.notification.success {
+  background: linear-gradient(135deg, var(--success-color), #059669);
+}
+
+.notification.error {
+  background: linear-gradient(135deg, var(--error-color), #dc2626);
+}
+
+.notification.warning {
+  background: linear-gradient(135deg, var(--warning-color), #d97706);
+}
+
 /* === لوحة أدوات التحكم === */
 .camera-controls-panel {
   background: rgba(255, 255, 255, 0.95);

@@ -15,7 +15,15 @@
     "video-call",
     "webrtc",
     "socket.io",
-    "arabic"
+    "arabic",
+    "pwa",
+    "dark-mode",
+    "file-sharing",
+    "real-time",
+    "family-communication",
+    "rtl-support",
+    "emoji-picker",
+    "typing-indicator"
   ],
   "author": "Family Chat Team",
   "license": "MIT",

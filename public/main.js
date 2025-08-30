@@ -269,11 +269,37 @@ socket.on("chat-message", (data) => {
 
 // === وظائف مكالمات الفيديو ===
 async function startCall() {
+  if (isCallActive) {
+    console.log('⚠️ المكالمة نشطة بالفعل');
+    return;
+  }
+  
+  // منع إنشاء اتصالات متعددة
+  if (peerConnection && peerConnection.connectionState !== 'closed') {
+    console.log('🔄 إغلاق الاتصال السابق قبل بدء مكالمة جديدة');
+    endCall();
+    // انتظار قصير للتأكد من التنظيف
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  
   isVideoCall = true;
   await initializeCall();
 }
 
 async function startAudioCall() {
+  if (isCallActive) {
+    console.log('⚠️ المكالمة نشطة بالفعل');
+    return;
+  }
+  
+  // منع إنشاء اتصالات متعددة
+  if (peerConnection && peerConnection.connectionState !== 'closed') {
+    console.log('🔄 إغلاق الاتصال السابق قبل بدء مكالمة جديدة');
+    endCall();
+    // انتظار قصير للتأكد من التنظيف
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  
   isVideoCall = false;
   await initializeCall();
 }
@@ -376,9 +402,22 @@ async function initializeCall() {
           peerConnection.iceConnectionState === 'completed') {
         console.log('✅ تم تأسيس اتصال ICE بنجاح');
         updateCallStatus('المكالمة متصلة', 'connected');
+        // إلغاء أي مؤقت انتظار سابق
+        if (window.iceDisconnectTimeout) {
+          clearTimeout(window.iceDisconnectTimeout);
+          window.iceDisconnectTimeout = null;
+        }
       } else if (peerConnection.iceConnectionState === 'disconnected') {
         console.log('⚠️ انقطع اتصال ICE مؤقتاً');
         updateCallStatus('إعادة الاتصال...', 'warning');
+        
+        // انتظار 15 ثانية قبل إنهاء المكالمة
+        window.iceDisconnectTimeout = setTimeout(() => {
+          if (peerConnection && peerConnection.iceConnectionState === 'disconnected') {
+            console.log('⏰ انتهت مهلة إعادة الاتصال، إنهاء المكالمة');
+            endCall();
+          }
+        }, 15000);
       } else if (peerConnection.iceConnectionState === 'failed') {
         console.log('❌ فشل اتصال ICE');
         updateCallStatus('فشل في الاتصال', 'error');
@@ -416,6 +455,19 @@ socket.on("offer", async ({ from, sdp }) => {
   try {
     console.log('📞 تم استلام عرض مكالمة من:', from);
     console.log('📞 بيانات العرض المستلم:', { from, sdp });
+    
+    // تجاهل العروض إذا كانت المكالمة نشطة بالفعل
+    if (isCallActive) {
+      console.log('⚠️ تجاهل العرض - المكالمة نشطة بالفعل');
+      return;
+    }
+    
+    // تنظيف أي اتصال سابق
+    if (peerConnection && peerConnection.connectionState !== 'closed') {
+      console.log('🔄 إغلاق الاتصال السابق قبل قبول العرض الجديد');
+      endCall();
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
     
     // السؤال عن قبول المكالمة
     const accept = confirm('📞 مكالمة واردة! هل تريد الإجابة؟');
@@ -524,9 +576,22 @@ socket.on("offer", async ({ from, sdp }) => {
           peerConnection.iceConnectionState === 'completed') {
         console.log('✅ تم تأسيس اتصال ICE للرد بنجاح');
         updateCallStatus('المكالمة متصلة', 'connected');
+        // إلغاء أي مؤقت انتظار سابق
+        if (window.iceDisconnectTimeout) {
+          clearTimeout(window.iceDisconnectTimeout);
+          window.iceDisconnectTimeout = null;
+        }
       } else if (peerConnection.iceConnectionState === 'disconnected') {
         console.log('⚠️ انقطع اتصال ICE للرد مؤقتاً');
         updateCallStatus('إعادة الاتصال...', 'warning');
+        
+        // انتظار 15 ثانية قبل إنهاء المكالمة
+        window.iceDisconnectTimeout = setTimeout(() => {
+          if (peerConnection && peerConnection.iceConnectionState === 'disconnected') {
+            console.log('⏰ انتهت مهلة إعادة الاتصال للرد، إنهاء المكالمة');
+            endCall();
+          }
+        }, 15000);
       } else if (peerConnection.iceConnectionState === 'failed') {
         console.log('❌ فشل اتصال ICE للرد');
         updateCallStatus('فشل في الاتصال', 'error');
@@ -556,11 +621,34 @@ socket.on("offer", async ({ from, sdp }) => {
 socket.on("answer", async ({ sdp }) => {
   try {
     console.log('✅ تم استلام إجابة المكالمة:', sdp.type);
+    
+    if (!peerConnection) {
+      console.error('❌ لا يوجد اتصال نظير');
+      return;
+    }
+    
+    // التحقق من حالة الاتصال قبل معالجة الإجابة
+    if (peerConnection.signalingState === 'stable') {
+      console.log('⚠️ الاتصال في حالة مستقرة، تجاهل الإجابة المكررة');
+      return;
+    }
+    
+    if (peerConnection.signalingState !== 'have-local-offer') {
+      console.log('⚠️ حالة الإشارة غير متوقعة:', peerConnection.signalingState);
+      return;
+    }
+    
     await peerConnection.setRemoteDescription(new RTCSessionDescription(sdp));
     console.log('✅ تم تعيين الوصف البعيد للإجابة');
   } catch (error) {
     console.error('❌ خطأ في معالجة الإجابة:', error);
     updateCallStatus('فشل في الاتصال', 'error');
+    
+    // إعادة تعيين الاتصال في حالة الخطأ
+    if (error.name === 'InvalidStateError') {
+      console.log('🔄 إعادة تعيين الاتصال بسبب حالة غير صحيحة');
+      endCall();
+    }
   }
 });
 
@@ -581,6 +669,16 @@ socket.on("ice-candidate", async ({ candidate }) => {
 function endCall() {
   console.log('📞 إنهاء المكالمة');
   
+  // تنظيف جميع المؤقتات
+  if (window.iceDisconnectTimeout) {
+    clearTimeout(window.iceDisconnectTimeout);
+    window.iceDisconnectTimeout = null;
+  }
+  if (window.userDisconnectTimeout) {
+    clearTimeout(window.userDisconnectTimeout);
+    window.userDisconnectTimeout = null;
+  }
+  
   // إيقاف المسارات المحلية
   if (localStream) {
     localStream.getTracks().forEach(track => {
@@ -596,8 +694,8 @@ function endCall() {
   }
   
   // تنظيف عناصر الفيديو
-  localVideo.srcObject = null;
-  remoteVideo.srcObject = null;
+  if (localVideo) localVideo.srcObject = null;
+  if (remoteVideo) remoteVideo.srcObject = null;
   
   // تحديث الواجهة
   isCallActive = false;
@@ -609,6 +707,8 @@ function endCall() {
   
   // إشعار الطرف الآخر
   socket.emit("end-call", { to: "all" });
+  
+  console.log('✅ تم تنظيف جميع موارد المكالمة');
 }
 
 // معالجة إنهاء المكالمة من الطرف الآخر
@@ -680,14 +780,34 @@ socket.on("user-disconnected", (userId) => {
   if (isCallActive) {
     updateCallStatus('انقطع اتصال المستخدم الآخر...', 'warning');
     
-    // انتظار 10 ثوان قبل إنهاء المكالمة
-    setTimeout(() => {
+    // إلغاء أي مؤقت سابق
+    if (window.userDisconnectTimeout) {
+      clearTimeout(window.userDisconnectTimeout);
+    }
+    
+    // انتظار 15 ثانية قبل إنهاء المكالمة
+    window.userDisconnectTimeout = setTimeout(() => {
       if (isCallActive) {
         console.log('⏰ انتهت مهلة الانتظار، إنهاء المكالمة');
         updateCallStatus('انقطع الاتصال', 'error');
         endCall();
       }
-    }, 10000);
+    }, 15000);
+  }
+});
+
+// معالجة عودة المستخدم
+socket.on('user-reconnected', (userId) => {
+  console.log('🔄 عاد المستخدم:', userId);
+  
+  // إلغاء مؤقت إنهاء المكالمة
+  if (window.userDisconnectTimeout) {
+    clearTimeout(window.userDisconnectTimeout);
+    window.userDisconnectTimeout = null;
+    
+    if (isCallActive) {
+      updateCallStatus('عاد المستخدم الآخر', 'connected');
+    }
   }
 });
 

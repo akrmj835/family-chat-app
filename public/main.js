@@ -64,6 +64,7 @@ let currentLocalInviteLink = '';
 let guestName = '';
 let familyName = '';
 
+// متغيرات التحسينات الجديدة (تم نقلها من الأعلى لتجنب التكرار)
 
 // تسجيل Service Worker للـ PWA
 if ('serviceWorker' in navigator) {
@@ -87,6 +88,11 @@ document.addEventListener('DOMContentLoaded', function() {
   guestNameInput = document.getElementById("guestNameInput");
   familyNameInput = document.getElementById("familyNameInput");
   inviteResult = document.getElementById("inviteResult");
+  
+  // تفعيل الصوت عند أول تفاعل
+  document.addEventListener('click', enableAudio, { once: true });
+  document.addEventListener('keydown', enableAudio, { once: true });
+  document.addEventListener('touchstart', enableAudio, { once: true });
   mobileInviteLinkText = document.getElementById("mobileInviteLinkText");
   localInviteLinkText = document.getElementById("localInviteLinkText");
   
@@ -1146,63 +1152,90 @@ function toggleCameraControls() {
 }
 
 // === وظائف الأصوات والإشعارات ===
+let audioContext = null;
+let audioEnabled = false;
+
+// تفعيل الصوت عند أول تفاعل
+function enableAudio() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    audioEnabled = true;
+    console.log('🔊 تم تفعيل نظام الصوت');
+  }
+  if (audioContext.state === 'suspended') {
+    audioContext.resume();
+  }
+}
+
 function playNotificationSound() {
-  // إنشاء صوت إشعار بسيط
-  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  const oscillator = audioContext.createOscillator();
-  const gainNode = audioContext.createGain();
+  if (!audioEnabled || !audioContext) return;
   
-  oscillator.connect(gainNode);
-  gainNode.connect(audioContext.destination);
-  
-  oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-  oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1);
-  
-  gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-  
-  oscillator.start(audioContext.currentTime);
-  oscillator.stop(audioContext.currentTime + 0.3);
+  try {
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+    oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1);
+    
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.3);
+  } catch (error) {
+    console.log('⚠️ خطأ في تشغيل صوت الإشعار:', error);
+  }
 }
 
 function playJoinSound() {
-  // صوت انضمام عضو جديد
-  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  const oscillator = audioContext.createOscillator();
-  const gainNode = audioContext.createGain();
+  if (!audioEnabled || !audioContext) return;
   
-  oscillator.connect(gainNode);
-  gainNode.connect(audioContext.destination);
-  
-  oscillator.frequency.setValueAtTime(523, audioContext.currentTime); // C5
-  oscillator.frequency.setValueAtTime(659, audioContext.currentTime + 0.1); // E5
-  oscillator.frequency.setValueAtTime(784, audioContext.currentTime + 0.2); // G5
-  
-  gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
-  
-  oscillator.start(audioContext.currentTime);
-  oscillator.stop(audioContext.currentTime + 0.4);
+  try {
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.setValueAtTime(523, audioContext.currentTime); // C5
+    oscillator.frequency.setValueAtTime(659, audioContext.currentTime + 0.1); // E5
+    oscillator.frequency.setValueAtTime(784, audioContext.currentTime + 0.2); // G5
+    
+    gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.4);
+  } catch (error) {
+    console.log('⚠️ خطأ في تشغيل صوت الانضمام:', error);
+  }
 }
 
 function playLeaveSound() {
-  // صوت مغادرة عضو
-  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  const oscillator = audioContext.createOscillator();
-  const gainNode = audioContext.createGain();
+  if (!audioEnabled || !audioContext) return;
   
-  oscillator.connect(gainNode);
-  gainNode.connect(audioContext.destination);
-  
-  oscillator.frequency.setValueAtTime(784, audioContext.currentTime); // G5
-  oscillator.frequency.setValueAtTime(659, audioContext.currentTime + 0.1); // E5
-  oscillator.frequency.setValueAtTime(523, audioContext.currentTime + 0.2); // C5
-  
-  gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
-  
-  oscillator.start(audioContext.currentTime);
-  oscillator.stop(audioContext.currentTime + 0.4);
+  try {
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.setValueAtTime(784, audioContext.currentTime); // G5
+    oscillator.frequency.setValueAtTime(659, audioContext.currentTime + 0.1); // E5
+    oscillator.frequency.setValueAtTime(523, audioContext.currentTime + 0.2); // C5
+    
+    gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.4);
+  } catch (error) {
+    console.log('⚠️ خطأ في تشغيل صوت المغادرة:', error);
+  }
 }
 
 // === وظيفة إظهار إشعار النسخ ===
@@ -1778,8 +1811,8 @@ startCall = async function() {
     updateConnectionQuality('excellent'); // افتراضي
     
     // مراقبة جودة الاتصال
-    if (peerConnection) {
-      setInterval(() => {
+    const qualityInterval = setInterval(() => {
+      if (peerConnection && peerConnection.connectionState === 'connected') {
         peerConnection.getStats().then(stats => {
           stats.forEach(report => {
             if (report.type === 'inbound-rtp' && report.mediaType === 'video') {
@@ -1795,9 +1828,13 @@ startCall = async function() {
               updateConnectionQuality(quality);
             }
           });
+        }).catch(error => {
+          console.log('⚠️ خطأ في قراءة إحصائيات الاتصال:', error);
         });
-      }, 5000);
-    }
+      } else if (!isCallActive) {
+        clearInterval(qualityInterval);
+      }
+    }, 5000);
   }
 };
 

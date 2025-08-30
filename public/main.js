@@ -99,6 +99,12 @@ document.addEventListener('DOMContentLoaded', function() {
   // تطبيق الوضع المحفوظ
   applyTheme(currentTheme);
   
+  // تحميل إعداد انعكاس الفيديو المحفوظ
+  const savedFlipSetting = localStorage.getItem('videoFlipped');
+  if (savedFlipSetting !== null) {
+    isVideoFlipped = savedFlipSetting === 'true';
+  }
+  
   // إخفاء الإيموجي بيكر عند النقر خارجه
   document.addEventListener('click', function(e) {
     const emojiPicker = document.getElementById('emojiPicker');
@@ -996,7 +1002,13 @@ function adjustZoom(value) {
   const zoomValue = document.getElementById('zoomValue');
   zoomValue.textContent = currentZoom.toFixed(1) + 'x';
   
-  localVideo.style.transform = `scale(${currentZoom})`;
+  // تطبيق التكبير مع مراعاة حالة الانعكاس
+  if (isVideoFlipped) {
+    localVideo.style.transform = `scaleX(-1) scale(${currentZoom})`;
+  } else {
+    localVideo.style.transform = `scale(${currentZoom})`;
+  }
+  
   console.log('🔍 تم تعديل التكبير إلى:', currentZoom);
 }
 
@@ -1013,6 +1025,33 @@ function applyFilter(filterType) {
   }
   
   console.log('🎨 تم تطبيق الفلتر:', filterType);
+}
+
+// متغير لحفظ حالة انعكاس الفيديو
+let isVideoFlipped = true; // افتراضياً الفيديو معكوس (طبيعي للمستخدم)
+
+// تبديل انعكاس الفيديو المحلي
+function toggleVideoFlip() {
+  const flipBtn = document.getElementById('flipVideoBtn');
+  
+  isVideoFlipped = !isVideoFlipped;
+  
+  if (isVideoFlipped) {
+    // الفيديو معكوس (يظهر طبيعي للمستخدم)
+    localVideo.style.transform = `scaleX(-1) scale(${currentZoom || 1})`;
+    flipBtn.textContent = '🪞 طبيعي';
+    flipBtn.title = 'الفيديو يظهر بشكل طبيعي (معكوس)';
+    console.log('🪞 تم تفعيل الانعكاس - الفيديو يظهر طبيعي');
+  } else {
+    // الفيديو غير معكوس (يظهر كما تراه الكاميرا)
+    localVideo.style.transform = `scale(${currentZoom || 1})`;
+    flipBtn.textContent = '🪞 معكوس';
+    flipBtn.title = 'الفيديو يظهر كما تراه الكاميرا (غير معكوس)';
+    console.log('🪞 تم إلغاء الانعكاس - الفيديو يظهر كما تراه الكاميرا');
+  }
+  
+  // حفظ الإعداد في localStorage
+  localStorage.setItem('videoFlipped', isVideoFlipped);
 }
 
 // التقاط صورة
@@ -1107,6 +1146,23 @@ function showCameraControls() {
     console.log('🎛️ تم إظهار زر إعدادات الكاميرا');
   } else {
     console.warn('⚠️ لم يتم العثور على زر إعدادات الكاميرا');
+  }
+  
+  // تحديث حالة زر الانعكاس
+  updateFlipButtonState();
+}
+
+// تحديث حالة زر الانعكاس
+function updateFlipButtonState() {
+  const flipBtn = document.getElementById('flipVideoBtn');
+  if (flipBtn) {
+    if (isVideoFlipped) {
+      flipBtn.textContent = '🪞 طبيعي';
+      flipBtn.title = 'الفيديو يظهر بشكل طبيعي (معكوس)';
+    } else {
+      flipBtn.textContent = '🪞 معكوس';
+      flipBtn.title = 'الفيديو يظهر كما تراه الكاميرا (غير معكوس)';
+    }
   }
 }
 

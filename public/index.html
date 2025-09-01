@@ -8,6 +8,10 @@
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- مكتبة QR Code -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.js"></script>
+  <!-- مكتبة Emoji Picker محسنة -->
+  <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
   <meta name="theme-color" content="#667eea">
   <meta name="description" content="تطبيق دردشة عائلي مع مكالمات فيديو وصوتية عبر الإنترنت">
   <link rel="manifest" href="manifest.json">
@@ -24,19 +28,19 @@
   </button>
 
   <!-- شاشة الترحيب للمدعوين -->
-  <div id="welcomeScreen" class="welcome-screen" style="display: none;">
+  <div id="welcomeScreen" class="welcome-screen">
     <div class="welcome-content">
       <h1>🎉 مرحباً بك في دردشة العائلة!</h1>
       <div id="welcomeMessage" class="welcome-message"></div>
       <div class="welcome-actions">
         <input type="text" id="guestNameInput" placeholder="اكتب اسمك (اختياري)" maxlength="15">
-        <input type="password" id="guestPasswordInput" placeholder="كلمة مرور الغرفة (إذا كانت مطلوبة)" maxlength="20" style="display: none;">
+        <input type="password" id="guestPasswordInput" placeholder="كلمة مرور الغرفة (إذا كانت مطلوبة)" maxlength="20" class="hidden">
         <button onclick="joinFamily()" id="joinBtn">🚀 انضمام للعائلة</button>
       </div>
     </div>
   </div>
 
-  <div class="container" id="mainApp">
+  <div class="container" id="mainApp" class="hidden">
     <header>
       <h1>👨‍👩‍👧‍👦 تطبيق العائلة</h1>
       <div class="status">
@@ -48,7 +52,31 @@
     <main>
       <!-- قسم الدردشة -->
       <section class="chat-section">
-        <h3>💬 الدردشة العائلية</h3>
+        <!-- قسم غرف الدردشة -->
+        <div class="chat-rooms-header">
+          <div class="rooms-title">
+            <h3>💬 غرف الدردشة العائلية</h3>
+            <button class="create-room-btn" onclick="showCreateRoomModal()" title="إنشاء غرفة جديدة">
+              ➕ غرفة جديدة
+            </button>
+          </div>
+          
+          <!-- قائمة الغرف -->
+          <div class="rooms-tabs" id="roomsTabs">
+            <div class="room-tab active" data-room="general" onclick="switchRoom('general')">
+              <span class="room-icon">🏠</span>
+              <span class="room-name">عام</span>
+              <span class="room-count" id="general-count">0</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- معلومات الغرفة الحالية -->
+        <div class="current-room-info">
+          <span class="current-room-name" id="currentRoomName">الغرفة العامة</span>
+          <span class="current-room-members" id="currentRoomMembers">0 أعضاء</span>
+        </div>
+        
         <div id="messages" class="messages-container"></div>
         
         <!-- مؤشر "يكتب الآن..." -->
@@ -63,37 +91,25 @@
         
         <div class="message-input">
           <div class="chat-extras">
-            <!-- زر رفع الملفات -->
-            <button class="file-upload-btn" onclick="document.getElementById('fileInput').click()" title="رفع ملف">
+            <!-- زر مشاركة الملفات المحسن -->
+            <button class="file-share-btn" onclick="showFileShareModal()" title="مشاركة ملفات">
               📎
             </button>
-            <input type="file" id="fileInput" accept="image/*,video/*,audio/*,.pdf,.doc,.docx" onchange="handleFileUpload(event)">
+            
+            <!-- زر الملفات السريع (للصور فقط) -->
+            <button class="quick-image-btn" onclick="document.getElementById('quickImageInput').click()" title="صورة سريعة">
+              🖼️
+            </button>
+            <input type="file" id="quickImageInput" accept="image/*" onchange="handleQuickImageUpload(event)" class="hidden">
             
             <!-- زر الإيموجي -->
             <button class="emoji-toggle" onclick="toggleEmojiPicker()" title="إضافة إيموجي">
               😊
             </button>
             
-            <!-- إيموجي بيكر -->
-            <div id="emojiPicker" class="emoji-picker">
-              <div class="emoji-grid">
-                <div class="emoji-item" onclick="addEmoji('😀')">😀</div>
-                <div class="emoji-item" onclick="addEmoji('😂')">😂</div>
-                <div class="emoji-item" onclick="addEmoji('🥰')">🥰</div>
-                <div class="emoji-item" onclick="addEmoji('😍')">😍</div>
-                <div class="emoji-item" onclick="addEmoji('🤗')">🤗</div>
-                <div class="emoji-item" onclick="addEmoji('😊')">😊</div>
-                <div class="emoji-item" onclick="addEmoji('👍')">👍</div>
-                <div class="emoji-item" onclick="addEmoji('❤️')">❤️</div>
-                <div class="emoji-item" onclick="addEmoji('🎉')">🎉</div>
-                <div class="emoji-item" onclick="addEmoji('🔥')">🔥</div>
-                <div class="emoji-item" onclick="addEmoji('💯')">💯</div>
-                <div class="emoji-item" onclick="addEmoji('🙏')">🙏</div>
-                <div class="emoji-item" onclick="addEmoji('👨‍👩‍👧‍👦')">👨‍👩‍👧‍👦</div>
-                <div class="emoji-item" onclick="addEmoji('🏠')">🏠</div>
-                <div class="emoji-item" onclick="addEmoji('🌟')">🌟</div>
-                <div class="emoji-item" onclick="addEmoji('💕')">💕</div>
-              </div>
+            <!-- إيموجي بيكر محسن -->
+            <div id="emojiPicker" class="emoji-picker hidden">
+              <emoji-picker id="advancedEmojiPicker"></emoji-picker>
             </div>
           </div>
           
@@ -108,7 +124,17 @@
         <div class="call-controls">
           <button onclick="startCall()" id="startCallBtn" class="btn">بدء مكالمة فيديو</button>
           <button onclick="startAudioCall()" id="startAudioBtn" class="btn">مكالمة صوتية</button>
-          <button onclick="endCall()" id="endCallBtn" class="btn" style="display: none;">إنهاء المكالمة</button>
+          <button onclick="startScreenShare()" id="screenShareBtn" class="btn hidden">🖥️ مشاركة الشاشة</button>
+          <button onclick="endCall()" id="endCallBtn" class="btn hidden">إنهاء المكالمة</button>
+        </div>
+        
+        <!-- مؤشرات حالة الميكروفون والكاميرا -->
+        <div class="media-status" id="mediaStatus" class="hidden">
+          <div class="status-indicator">
+            <span id="micStatus" class="status-item">🎤 <span class="status-text">مفعل</span></span>
+            <span id="cameraStatus" class="status-item">📹 <span class="status-text">مفعل</span></span>
+            <span id="screenStatus" class="status-item hidden">🖥️ <span class="status-text">مشاركة الشاشة</span></span>
+          </div>
         </div>
         
         <!-- مؤقت المكالمة -->
@@ -118,7 +144,7 @@
         </div>
         
         <!-- مؤشر جودة الاتصال -->
-        <div id="connectionQuality" class="connection-quality" style="display: none;">
+        <div id="connectionQuality" class="connection-quality hidden">
           <div class="quality-bars">
             <div class="quality-bar"></div>
             <div class="quality-bar"></div>
@@ -136,7 +162,7 @@
             <label>أنت</label>
             
             <!-- زر إظهار أدوات التحكم -->
-            <button class="camera-settings-btn" id="cameraSettingsBtn" onclick="toggleCameraControls()" style="display: none;" title="إعدادات الكاميرا">
+            <button class="camera-settings-btn" id="cameraSettingsBtn" onclick="toggleCameraControls()" class="hidden" title="إعدادات الكاميرا">
               ⚙️
             </button>
           </div>
@@ -148,7 +174,7 @@
         </div>
         
         <!-- أدوات التحكم في الكاميرا (خارج الفيديو) -->
-        <div class="camera-controls-panel" id="cameraControlsPanel" style="display: none;">
+        <div class="camera-controls-panel" id="cameraControlsPanel" class="hidden">
           <div class="camera-controls-header">
             <h4>🎛️ إعدادات الكاميرا</h4>
             <button class="close-controls-btn" onclick="toggleCameraControls()">✖️</button>
@@ -202,7 +228,7 @@
         </div>
         
         <!-- منطقة عرض الصور المُلتقطة -->
-        <div id="capturedPhotos" class="captured-photos" style="display: none;">
+        <div id="capturedPhotos" class="captured-photos hidden">
           <h4>📸 الصور المُلتقطة</h4>
           <div id="photosContainer" class="photos-container"></div>
         </div>
@@ -224,7 +250,7 @@
             </div>
             <button onclick="createInviteLink()" id="createInviteBtn">إنشاء رابط دعوة</button>
           </div>
-          <div id="inviteResult" class="invite-result" style="display: none;">
+          <div id="inviteResult" class="invite-result hidden">
             <div class="invite-info">
               <p><strong>رابط الدعوة جاهز! 🎉</strong></p>
               
@@ -246,6 +272,13 @@
                 </div>
               </div>
               
+              <!-- QR Code للدعوة -->
+              <div class="qr-code-container" id="qrCodeContainer" class="hidden">
+                <div class="qr-code-title">📱 امسح الكود للانضمام السريع</div>
+                <canvas id="qrCodeCanvas"></canvas>
+                <small>امسح الكود بكاميرا الهاتف للانضمام مباشرة</small>
+              </div>
+              
               <p class="invite-details">
                 <small>صالح لمدة 24 ساعة • استخدم رابط الجوال للهواتف الذكية</small>
               </p>
@@ -257,6 +290,86 @@
           </div>
         </div>
       </section>
+      
+      <!-- نافذة إنشاء غرفة جديدة -->
+      <div id="createRoomModal" class="modal hidden">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>➕ إنشاء غرفة جديدة</h3>
+            <button class="close-modal" onclick="hideCreateRoomModal()">✖️</button>
+          </div>
+          
+          <div class="modal-body">
+            <div class="form-group">
+              <label for="roomNameInput">🏷️ اسم الغرفة:</label>
+              <input type="text" id="roomNameInput" placeholder="مثال: غرفة الأطفال" maxlength="20">
+            </div>
+            
+            <div class="form-group">
+              <label for="roomIconSelect">🎨 أيقونة الغرفة:</label>
+              <select id="roomIconSelect">
+                <option value="👨‍👩‍👧‍👦">👨‍👩‍👧‍👦 العائلة</option>
+                <option value="👶">👶 الأطفال</option>
+                <option value="👴">👴 كبار السن</option>
+                <option value="🎮">🎮 الألعاب</option>
+                <option value="📚">📚 التعليم</option>
+                <option value="🍳">🍳 الطبخ</option>
+                <option value="🏃‍♂️">🏃‍♂️ الرياضة</option>
+                <option value="🎬">🎬 الترفيه</option>
+                <option value="💼">💼 العمل</option>
+                <option value="🎉">🎉 المناسبات</option>
+                <option value="📝">📝 المهام</option>
+                <option value="💬">💬 عام</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="roomDescInput">📄 وصف الغرفة (اختياري):</label>
+              <textarea id="roomDescInput" placeholder="وصف مختصر للغرفة..." maxlength="100"></textarea>
+            </div>
+            
+            <div class="form-group">
+              <label>
+                <input type="checkbox" id="roomPrivateCheck">
+                🔒 غرفة خاصة (تحتاج دعوة للانضمام)
+              </label>
+            </div>
+          </div>
+          
+          <div class="modal-footer">
+            <button class="cancel-btn" onclick="hideCreateRoomModal()">إلغاء</button>
+            <button class="create-btn" onclick="createNewRoom()">إنشاء الغرفة</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- نافذة مشاركة الملفات -->
+      <div id="fileShareModal" class="modal" style="display: none;">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>📎 مشاركة ملف</h3>
+            <button class="close-modal" onclick="hideFileShareModal()">✖️</button>
+          </div>
+          
+          <div class="modal-body">
+            <div class="file-upload-area" id="fileUploadArea">
+              <div class="upload-icon">📁</div>
+              <p>اسحب الملفات هنا أو انقر للاختيار</p>
+              <input type="file" id="fileShareInput" multiple accept="*/*">
+              <div class="file-info">
+                <small>الحد الأقصى: 10 ميجابايت لكل ملف</small>
+              </div>
+            </div>
+            
+            <div id="selectedFiles" class="selected-files"></div>
+          </div>
+          
+          <div class="modal-footer">
+            <button class="cancel-btn" onclick="hideFileShareModal()">إلغاء</button>
+            <button class="upload-btn" onclick="uploadSelectedFiles()" disabled>رفع الملفات</button>
+          </div>
+        </div>
+      </div>
     </main>
 
     <footer>
@@ -266,6 +379,7 @@
 
   <!-- تحميل المكتبات -->
   <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <script src="main.js"></script>
 </body>
 </html>
